@@ -1,0 +1,47 @@
+# Secrets and environment files
+.env
+.env.*
+!.env.example
+*.env
+*api_key*
+*apikey*
+*secret*
+*token*
+*.pem
+*.key
+
+# Local/private inputs and outputs
+raw_inputs/
+private_inputs/
+real_project/
+test2/
+external_outputs/
+documents_raw/
+documents_processed/
+tmp/
+runs/
+logs/
+*.pdf
+*.docx
+*.doc
+*.odt
+*.xlsx
+*.xls
+*.zip
+
+# Model weights and generated caches
+embedding_models/
+*.safetensors
+*.bin
+*.pt
+*.pth
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
