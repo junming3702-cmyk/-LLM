@@ -1,0 +1,39 @@
+{
+  "dataset_version": "contract_review_final_synthetic_gold_v1",
+  "promoted_date": "2026-08-23",
+  "status": "final_synthetic_gold_for_retrieval_experiments",
+  "rows": 60,
+  "confirmation_source": "user_approved_current_phase",
+  "source_audit_chain": {
+    "candidate_pool": "not_included_in_public_release",
+    "adjudicated_pool": "not_included_in_public_release",
+    "final_jsonl": "data/gold/contract_review_final_synthetic_gold_v1.jsonl"
+  },
+  "risk_category_counts": {
+    "cross_document_link_missing_or_inconsistent": 6,
+    "internal_inconsistency": 6,
+    "missing_or_insufficient_evidence": 8,
+    "no_issue_identified": 12,
+    "out_of_scope_or_unverifiable": 4,
+    "potential_non_compliance": 22,
+    "temporal_or_version_uncertainty": 2
+  },
+  "human_review_status_counts": {
+    "accepted": 44,
+    "insufficient_information": 16
+  },
+  "evidence_boundary_counts": {
+    "not_supported_by_current_corpus": 7,
+    "partially_supported": 18,
+    "requires_human_legal_review": 1,
+    "supported_by_multiple_local_levels": 2,
+    "supported_by_primary_local_source": 30,
+    "supported_by_supplementary_source_only": 2
+  },
+  "limitations": [
+    "This is a final synthetic gold set for retrieval experiments, not a real procurement case dataset.",
+    "Insufficient-information and abstention cases remain intentionally in the gold set.",
+    "No embedding, LLM or external retrieval has been run against this promoted set yet."
+  ],
+  "next_stage": "embedding/hybrid retrieval comparison, subject to separate stage approval"
+}

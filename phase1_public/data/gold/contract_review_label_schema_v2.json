@@ -1,0 +1,68 @@
+{
+  "schema_version": "contract_review_label_v2",
+  "unit": "one_review_finding_in_a_full_or_partial_contract_bundle",
+  "purpose": "Create human-reviewed gold findings for a traceable LLM+RAG contract compliance assistant.",
+  "required_fields": [
+    "sample_id",
+    "project_id",
+    "document_id",
+    "document_type",
+    "document_location",
+    "document_excerpt",
+    "issue_id",
+    "risk_category",
+    "risk_severity",
+    "legal_basis_chunk_ids",
+    "legal_basis_locators",
+    "gold_risk_statement",
+    "evidence_boundary",
+    "recommended_human_action",
+    "human_review_status",
+    "annotator_id",
+    "annotation_timestamp"
+  ],
+  "risk_categories": [
+    "potential_non_compliance",
+    "missing_or_insufficient_evidence",
+    "internal_inconsistency",
+    "ambiguity_or_unclear_obligation",
+    "temporal_or_version_uncertainty",
+    "cross_document_link_missing_or_inconsistent",
+    "out_of_scope_or_unverifiable",
+    "no_issue_identified"
+  ],
+  "risk_severity_values": [
+    "informational",
+    "low",
+    "medium",
+    "high",
+    "critical"
+  ],
+  "human_review_status_values": [
+    "pending",
+    "accepted",
+    "revised",
+    "rejected",
+    "insufficient_information"
+  ],
+  "annotation_state_values": [
+    "candidate_pending_human_confirmation",
+    "human_confirmed_synthetic_v1",
+    "agent_reviewed_pending_user_approval",
+    "human_confirmed_public_or_anonymized",
+    "adjudicated_revised",
+    "rejected_candidate"
+  ],
+  "evidence_boundary_values": [
+    "supported_by_primary_local_source",
+    "supported_by_multiple_local_levels",
+    "supported_by_supplementary_source_only",
+    "supported_by_verification_pending_source",
+    "partially_supported",
+    "not_supported_by_current_corpus",
+    "requires_human_legal_review"
+  ],
+  "document_location_format": "page/paragraph/clause/table/section as available; never invent a locator",
+  "legal_basis_format": "one or more chunk_id values from rag_index/corpus_chunks.jsonl, plus the displayed article/source_locator",
+  "decision_boundary": "The label is a review finding and recommendation only; it must not encode an automatic bid rejection, award decision or final legal opinion."
+}
