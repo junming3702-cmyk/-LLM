@@ -1,0 +1,47 @@
+{
+  "policy": "MinerU two-tier retrieval admission",
+  "checks": [
+    {
+      "check": "tier1_reliable_block",
+      "expected": "high_trust",
+      "actual": "high_trust",
+      "pass": true
+    },
+    {
+      "check": "tier1_anchor_block",
+      "expected": "high_trust",
+      "actual": "high_trust",
+      "pass": true
+    },
+    {
+      "check": "tier2_unmapped_block",
+      "expected": "supplement_candidate_pool",
+      "actual": "supplement_candidate_pool",
+      "pass": true
+    },
+    {
+      "check": "tier2_unmapped_upper_boundary",
+      "expected": "supplement_candidate_pool",
+      "actual": "supplement_candidate_pool",
+      "pass": true
+    },
+    {
+      "check": "tier2_mapped_block_not_promoted",
+      "expected": "excluded_pending_review",
+      "actual": "excluded_pending_review",
+      "pass": true
+    },
+    {
+      "check": "below_tier2_unmapped_block",
+      "expected": "excluded_pending_review",
+      "actual": "excluded_pending_review",
+      "pass": true
+    },
+    {
+      "check": "supplement_warning_and_review_flags",
+      "pass": true
+    }
+  ],
+  "status": "pass",
+  "failures": []
+}
