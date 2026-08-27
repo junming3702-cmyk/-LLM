@@ -1,0 +1,19 @@
+{
+  "project_id": "P001",
+  "project_location": {
+    "raw_text": "",
+    "country": "中国",
+    "province": null,
+    "city": null,
+    "county": null,
+    "evidence_document_id": null,
+    "evidence_location": null,
+    "confidence": null,
+    "human_confirmation": "pending"
+  },
+  "project_type": null,
+  "procurement_type": null,
+  "document_stage": null,
+  "local_regulation_candidates": [],
+  "notes": "Location-derived Level 4 sources require human confirmation before retrieval context is finalized."
+}

@@ -1,0 +1,21 @@
+{
+  "run_id": "public-smoke-001",
+  "project_id": "synthetic-public-example",
+  "review_scope": {
+    "jurisdiction": "PRC procurement-law synthetic example",
+    "project_location": "unknown",
+    "project_type": "unknown",
+    "review_stage": "document pre-review"
+  },
+  "contract_evidence": {
+    "document_id": "synthetic-document-001",
+    "document_excerpt": "示例：投标文件声明具备招标文件明确要求的资质，但未附对应证明材料。",
+    "source_locator": "synthetic example; no physical source document"
+  },
+  "retrieved_legal_evidence": [],
+  "runtime_constraints": {
+    "external_retrieval_called": false,
+    "human_review_called": false,
+    "overall_review_status": "requires_human_second_review"
+  }
+}
