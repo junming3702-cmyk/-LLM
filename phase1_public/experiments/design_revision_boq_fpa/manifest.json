@@ -1,0 +1,73 @@
+{
+  "experiment_id": "design_boq_fpa_pilot_v1_public",
+  "files": [
+    {
+      "bytes": 1656,
+      "path": "config.json",
+      "sha256": "9d6e55e26ad33ca88f6375da61aec1b9a8d2553aafa0f90ffbf7b708e619203e"
+    },
+    {
+      "bytes": 3066,
+      "path": "experiment_plan.md",
+      "sha256": "e099acfd2c16f6490a02445edc5055503b90cccef79017e1cdbf49b17485e06e"
+    },
+    {
+      "bytes": 37667,
+      "path": "inputs/cases.jsonl",
+      "sha256": "aebc8c766376ba6c80e27129329bc8ad867d87fb5c0b6bb5fe02f131c0f002db"
+    },
+    {
+      "bytes": 829,
+      "path": "outputs/metrics.csv",
+      "sha256": "6da90bcbe25e6eb346a987b8acf939f01944f52a5312d2f2a6518955c510f21f"
+    },
+    {
+      "bytes": 8645,
+      "path": "outputs/metrics.json",
+      "sha256": "15418bf51d180a1bd1245e2725dc3dee878208d61c05f180d1a185ef44b9892b"
+    },
+    {
+      "bytes": 74690,
+      "path": "outputs/traces.jsonl",
+      "sha256": "4dd99312b43335c2de8aea63751d167db86375f10a8efd7c495f7a10705cd8ad"
+    },
+    {
+      "bytes": 2287,
+      "path": "README.md",
+      "sha256": "58a46ed6c4a646ed607e49aa7efbb1441faa6e12e87d01f1a5c3b4af3b31b9f4"
+    },
+    {
+      "bytes": 2855,
+      "path": "reports/experiment_result.md",
+      "sha256": "f616b8c369ebb6fa44421f2a729906990a4dd4732953bc6f97788221d3af9949"
+    },
+    {
+      "bytes": 2855,
+      "path": "reports/summary_en.md",
+      "sha256": "f616b8c369ebb6fa44421f2a729906990a4dd4732953bc6f97788221d3af9949"
+    },
+    {
+      "bytes": 29658,
+      "path": "src/experiment.py",
+      "sha256": "0b04d87742f93eeda81f1eb16c92bf929afefdd5a8d6bac10ac4af01e900b6d4"
+    },
+    {
+      "bytes": 17613,
+      "path": "src/generate_dataset.py",
+      "sha256": "a6d45466bb8735ffb10a70edbeaaf1157b49fc6eb86eebc12ff611c48a8bb76c"
+    },
+    {
+      "bytes": 5336,
+      "path": "tests/test_experiment.py",
+      "sha256": "13294b98c701ae09b873389e8de9b2044ac452d8d4b5ce69c8a9fb9afe4af343"
+    },
+    {
+      "bytes": 5028,
+      "path": "tests/test_serialized_artifacts.py",
+      "sha256": "71ffa7c79903044347a79279f5bb7d4e9a114db888c0d69f99d8c70965ec1559"
+    }
+  ],
+  "hash_algorithm": "SHA-256",
+  "origin_date": "2026-09-03",
+  "scope": "all deterministic files in this public experiment folder except manifest.json, reports/independent_qa.md, tmp/, __pycache__/ and *.pyc"
+}

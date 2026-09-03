@@ -1,0 +1,11 @@
+method,case_type,case_count,gold_accept_count,accepted_count,abstained_count,decision_accuracy,gold_accept_recall,accepted_accuracy,coverage,unsupported_attribution,high_confidence_error,provenance_resolvability,appropriate_abstention
+M1,overall,24,6,24,0,0.25,1.0,0.25,1.0,0.75,0.5,0.75,0.0
+M2,overall,24,6,6,18,1.0,1.0,1.0,0.25,0.0,0.0,1.0,1.0
+M1,explicit_mapping,6,6,6,0,1.0,1.0,1.0,1.0,0.0,0.0,1.0,
+M2,explicit_mapping,6,6,6,0,1.0,1.0,1.0,1.0,0.0,0.0,1.0,
+M1,ambiguous_alternatives,6,0,6,0,0.0,,0.0,1.0,1.0,1.0,1.0,0.0
+M2,ambiguous_alternatives,6,0,0,6,1.0,,,0.0,,,,1.0
+M1,cross_document_version_conflict,6,0,6,0,0.0,,0.0,1.0,1.0,1.0,1.0,0.0
+M2,cross_document_version_conflict,6,0,0,6,1.0,,,0.0,,,,1.0
+M1,insufficient_evidence,6,0,6,0,0.0,,0.0,1.0,1.0,0.0,0.0,0.0
+M2,insufficient_evidence,6,0,0,6,1.0,,,0.0,,,,1.0

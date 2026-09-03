@@ -1,0 +1,56 @@
+{
+  "experiment_id": "design_boq_fpa_pilot_v1",
+  "title": "Deterministic Design-Revision-to-BoQ Forced-Provenance Attribution Pilot",
+  "version": "1.0.0",
+  "language": "Python standard library only",
+  "case_count": 24,
+  "cases_per_type": 6,
+  "case_types": [
+    "explicit_mapping",
+    "ambiguous_alternatives",
+    "cross_document_version_conflict",
+    "insufficient_evidence"
+  ],
+  "methods": {
+    "M1": "unconstrained_mapper_top_candidate",
+    "M2": "M1_plus_forced_provenance_attribution_gate",
+    "lexical_scoring": {
+      "token_overlap_weight": 1.0,
+      "identifier_match_weight": 3.0,
+      "negative_token_penalty": 1.0,
+      "score_tie_policy": "candidate_id_ascending",
+      "acceptance_threshold": 0.55,
+      "minimum_margin": 0.15,
+      "minimum_support_evidence": 1,
+      "conflict_policy": "abstain"
+    }
+  },
+  "model_routing_record": {
+    "decision_layer": {
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high"
+    },
+    "execution_layer": {
+      "model": "gpt-5.6-luna",
+      "reasoning_effort": "ultra"
+    },
+    "direct_openai_responses_api_compatible_fallback": {
+      "highest_effort": "max",
+      "used": false
+    }
+  },
+  "data_policy": {
+    "synthetic_only": true,
+    "external_api_calls": false,
+    "external_upload": false,
+    "real_project_data": false,
+    "llm_used": false,
+    "bim_used": false,
+    "blockchain_used": false
+  },
+  "output_contract": {
+    "trace_format": "JSONL",
+    "metrics_formats": ["JSON", "CSV"],
+    "manifest_hash": "SHA-256 for deterministic artifacts excluding manifest.json, reports/independent_qa.md, tmp/, any __pycache__ directory and *.pyc"
+  }
+}
