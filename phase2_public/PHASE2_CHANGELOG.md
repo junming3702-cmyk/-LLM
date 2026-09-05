@@ -29,6 +29,16 @@ milestones and do not create additional public product phases.
   `第二十三条` before unsupported-citation checks;
 - retained the five-state conclusion contract and mandatory human second review.
 
+## 2026-09-05 — External-completion pre-final gate
+
+- made completed external discovery/verification a precondition for the full
+  60-item online reasoning run whenever a mode is triggered;
+- prevented the final DeepSeek call and human-deliverable output while external
+  status is pending, failed, manifest-only or missing scope completion evidence;
+- retained incomplete cases only as internal `waiting_for_external_retrieval`
+  checkpoints and withheld the final batch manifest until all cases are ready;
+- added deterministic tests for provider-completed and human-attested scope paths.
+
 ## Pending work
 
 - create an independently sampled hold-out or coverage/control set;

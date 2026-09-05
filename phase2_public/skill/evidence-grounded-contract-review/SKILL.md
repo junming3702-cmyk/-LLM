@@ -185,6 +185,16 @@ Use external evidence only when `external_retrieval_enabled=true` and an actual 
 - External material must be human-confirmed before entering the final evidence chain.
 - Do not claim an external check was performed when no call log exists.
 - Keep external results out of local-only evaluation metrics.
+- For the full 60-item online evaluation, treat every runtime
+  `discovery.requested=true` or `verification.requested=true` as a pre-final
+  dependency. Require the requested mode to reach a completed state with
+  `external_search_completed=true`, complete configured-scope coverage, and
+  either `provider_execution` or a bound `human_attested_manual_discovery`
+  record before calling the final LLM.
+- A manifest lookup, successful page fetch without article-level retrieval,
+  `pending`, `failed`, partial scope, or missing attestation must produce only
+  an internal `waiting_for_external_retrieval` checkpoint. Do not produce a
+  final review row or human-deliverable result from that checkpoint.
 
 ## 5. Issue reasoning workflow
 

@@ -40,6 +40,7 @@ from external_fallback_v2 import (
     ManifestHttpProvider,
     build_local_search_completion,
     derive_verification_reasons,
+    external_finalization_readiness,
     load_external_manifest,
 )
 from llm_abstention_gate import apply_gate
@@ -420,6 +421,7 @@ def run_case(
     compact_final_output: bool,
     experiment_run_id: str,
     external_fallback: ExternalFallbackStateMachine | None = None,
+    require_complete_external_before_final: bool = False,
 ) -> dict[str, Any]:
     query = label["document_excerpt"]
     retrieval_queries = [
@@ -724,6 +726,7 @@ def run_case(
         },
         local_explicit_satisfaction=local_explicit_satisfaction,
     )
+    external_finalization_gate = external_finalization_readiness(external_audit)
     external_candidates = external_audit.get("candidates", [])
     runtime_evidence = retrieved_evidence + external_candidates
 
@@ -775,6 +778,10 @@ def run_case(
             "external_no_applicable_independent_source": bool(
                 external_audit.get("external_no_applicable_independent_source")
             ),
+            "external_completion_required_before_final": bool(
+                require_complete_external_before_final
+            ),
+            "external_finalization_gate": external_finalization_gate,
             "external_candidates_require_human_source_confirmation": True,
             "human_review_called": False,
             "gold_labels_available_to_runtime": False,
@@ -782,6 +789,36 @@ def run_case(
             "single_issue_compact_output": compact_final_output,
         },
     }
+    if (
+        require_complete_external_before_final
+        and external_finalization_gate.get("required") is True
+        and external_finalization_gate.get("ready_for_final_llm") is not True
+    ):
+        return {
+            "issue_id": label["issue_id"],
+            "started_and_finished_at": now_utc(),
+            "run_status": "waiting_for_external_retrieval",
+            "ready_for_human_delivery": False,
+            "model": MODEL_NAME,
+            "embedding_model": retriever.embedding_model_name,
+            "runtime_input": runtime_input,
+            "cascade_execution_audit": audit_levels,
+            "local_search_completion": local_search_completion,
+            "external_retrieval_audit": external_audit,
+            "external_finalization_gate": external_finalization_gate,
+            "final_llm_response": {
+                "ok": False,
+                "not_called": True,
+                "reason": "external_retrieval_must_complete_before_final_llm",
+            },
+            "post_llm_gate": None,
+            "offline_gold_comparison": {
+                "gold_fields_were_sent_to_api": False,
+                "risk_category": label.get("risk_category"),
+                "evidence_boundary": label.get("evidence_boundary"),
+                "gold_legal_basis_chunk_ids": label.get("legal_basis_chunk_ids", []),
+            },
+        }
     effective_final_prompt = final_prompt + FINAL_COMPACT_OUTPUT_CONTRACT if compact_final_output else final_prompt
     final_response = model_request(
         api_key,
@@ -807,6 +844,9 @@ def run_case(
         "external_retrieval_audit": external_audit,
         "final_llm_response": final_response,
         "post_llm_gate": gate_result,
+        "external_finalization_gate": external_finalization_gate,
+        "run_status": "completed",
+        "ready_for_human_delivery": True,
         "offline_gold_comparison": {
             "gold_fields_were_sent_to_api": False,
             "risk_category": label.get("risk_category"),
@@ -848,7 +888,25 @@ def main() -> int:
         help="Separate allowlisted public-source manifest used by the external adapter.",
     )
     parser.add_argument("--external-timeout-seconds", type=float, default=20.0)
+    parser.add_argument(
+        "--require-complete-external-before-final",
+        action="store_true",
+        help=(
+            "Do not call the final LLM or write a deliverable result while a "
+            "triggered external discovery/verification mode is incomplete. "
+            "This is automatically enforced by --all-issues."
+        ),
+    )
     args = parser.parse_args()
+
+    require_complete_external_before_final = bool(
+        args.require_complete_external_before_final or args.all_issues
+    )
+    if require_complete_external_before_final and not args.enable_external_fallback:
+        parser.error(
+            "complete external retrieval is required before final output; "
+            "enable --enable-external-fallback and configure a completion-capable provider"
+        )
 
     output_root = args.output_root
     if args.enable_external_fallback and output_root == OUT_ROOT:
@@ -920,13 +978,27 @@ def main() -> int:
             "manifest_load_error": external_manifest_error,
             "scope_policy": "manifest_guided_finite_lookup_is_not_exhaustive_discovery",
             "candidate_policy": "external_candidates_require_human_source_confirmation_and_never_auto_admitted",
+            "completion_required_before_final": require_complete_external_before_final,
+            "final_output_policy": "no final LLM call or deliverable result while triggered external retrieval is incomplete",
         },
         "results": [],
+        "completed_count": 0,
+        "pending_external_count": 0,
     }
+    pending_external_dir = output_root / ".pending_external"
     for issue_id in issue_ids:
         result_path = output_root / f"{issue_id}.json"
         if args.resume and result_path.exists():
-            manifest["results"].append({"issue_id": issue_id, "result_file": str(result_path), "resumed": True})
+            manifest["results"].append(
+                {
+                    "issue_id": issue_id,
+                    "status": "completed",
+                    "ready_for_human_delivery": True,
+                    "result_file": str(result_path),
+                    "resumed": True,
+                }
+            )
+            manifest["completed_count"] = int(manifest.get("completed_count") or 0) + 1
             print(f"SKIP {issue_id} (existing result)", flush=True)
             continue
         print(f"START {issue_id}", flush=True)
@@ -942,14 +1014,61 @@ def main() -> int:
             compact_final_output=args.compact_final_output,
             experiment_run_id=args.run_id,
             external_fallback=external_fallback,
+            require_complete_external_before_final=require_complete_external_before_final,
         )
+        if result.get("run_status") == "waiting_for_external_retrieval":
+            pending_external_dir.mkdir(parents=True, exist_ok=True)
+            checkpoint_path = pending_external_dir / f"{issue_id}.json"
+            checkpoint_path.write_text(
+                json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            manifest["results"].append(
+                {
+                    "issue_id": issue_id,
+                    "status": "waiting_for_external_retrieval",
+                    "ready_for_human_delivery": False,
+                    "checkpoint_file": str(checkpoint_path),
+                }
+            )
+            manifest["pending_external_count"] = int(
+                manifest.get("pending_external_count") or 0
+            ) + 1
+            (output_root / "manifest.in_progress.json").write_text(
+                json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            print(f"WAIT_EXTERNAL {issue_id}", flush=True)
+            continue
         result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-        manifest["results"].append({"issue_id": issue_id, "result_file": str(result_path)})
-        manifest["completed_count"] = len(manifest["results"])
+        manifest["results"].append(
+            {
+                "issue_id": issue_id,
+                "status": "completed",
+                "ready_for_human_delivery": True,
+                "result_file": str(result_path),
+            }
+        )
+        manifest["completed_count"] = int(manifest.get("completed_count") or 0) + 1
         (output_root / "manifest.in_progress.json").write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
         )
         print(f"DONE {issue_id}", flush=True)
+    if manifest.get("pending_external_count"):
+        in_progress_path = output_root / "manifest.in_progress.json"
+        in_progress_path.write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        print(
+            json.dumps(
+                {
+                    "manifest_in_progress": str(in_progress_path),
+                    "completed": manifest.get("completed_count", 0),
+                    "pending_external": manifest.get("pending_external_count", 0),
+                    "final_output_written": False,
+                },
+                ensure_ascii=False,
+            )
+        )
+        return 3
     manifest_path = output_root / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps({"manifest": str(manifest_path), "completed": len(issue_ids)}, ensure_ascii=False))

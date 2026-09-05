@@ -209,6 +209,8 @@ Level 4：检索到相关地方性法规
 
 只有在运行参数明确设置 `external_retrieval_enabled=true` 且运行日志中存在对应调用记录时，才可以使用外部检索结果。
 
+**60 条正式测试的前置闸门**：凡某一 issue 的 external discovery 或 verification 被 runtime 标记为 `requested=true`，必须先完成该模式的具体条款检索、配置范围覆盖及 `scope_completion_basis` 记录，形成 `external_search_completed=true`，然后才允许调用最终 LLM 并生成可交付结果。`manifest_lookup`、`pending`、`failed`、网络访问成功但未形成条款级结果、缺少 provider 范围证明或缺少绑定的人工范围确认，均必须停留在 `waiting_for_external_retrieval`；不得调用最终 LLM、不得生成最终审核表行，也不得把处理中间记录作为人工审核结论交付。该限制由 pre-LLM runtime gate 执行，不能由模型自行声明已完成。
+
 - 国家法律法规数据库是优先的外部发现、版本、效力和条款核验来源；
 - CECN `http://www.cecn.gov.cn/index.asp` 在域名身份、内容性质、稳定性和权威角色完成核验前，只能作为待核验行业资料候选；
 - CECN 不得作为法律依据唯一来源，也不得在未核验时支持确定性高风险判断；
@@ -633,4 +635,4 @@ confidence_assessment ≤ applicability_confidence
 
 所有风险 finding 默认进入人工复核。模型不得预先填写人工最终状态 `accepted`、`revised` 或 `rejected`。人工复核者可以接受、修正、驳回或标记为信息不足；原始模型输出、法规引用、人工修改内容和修改理由必须保留，以形成可审计的 gold reference。
 
-在用户批准本候选文件并将其注册为最终版本前，不得启动 LLM evidence-grounded reasoning 或 human review 闭环。启用后必须记录 prompt 版本、模型名称/版本、检索参数、外部调用状态、输出 schema 和运行时间。
+本文件已批准并注册为正式版本。每次启用后必须记录 prompt 版本、模型名称/版本、检索参数、外部调用状态、输出 schema 和运行时间；完整 60 条在线测试还必须通过第 5 节的 external retrieval 前置闸门。

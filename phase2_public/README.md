@@ -16,7 +16,10 @@ real tender files, private API payloads, local cache paths or credentials.
 3. External retrieval is triggered after the local four-level corpus is
    exhausted or when an admitted source needs version, effect or jurisdiction
    verification. A public page becomes supported evidence only after article-level
-   capture, provenance recording and human confirmation.
+   capture, provenance recording and human confirmation. During the full 60-item
+   online run, a triggered external mode must complete its configured scope before
+   the final LLM is called; pending/failed/manifest-only work remains an internal
+   checkpoint and produces no human-deliverable result.
 4. Document ingestion uses a main/backup pattern: deterministic baseline parser,
    MinerU API for documents already marked `needs_human_review`, and coordinate
    OCR as the backup when MinerU remains incomplete. Locator quality controls
