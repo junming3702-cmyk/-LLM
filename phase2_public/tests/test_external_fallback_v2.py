@@ -966,10 +966,20 @@ class ExternalFallbackV2Tests(unittest.TestCase):
                     "confidence": "low",
                 }
             else:
-                parsed = {"findings": []}
+                parsed = {
+                    "findings": [
+                        {
+                            "conclusion_type": (
+                                "insufficient_information_needs_human_confirm"
+                            )
+                        }
+                    ]
+                }
             return {"parsed": parsed, "selected_text": "", "finish_reason": "stop", "usage": {}}
 
-        with patch.object(runner, "model_request", side_effect=fake_model_request), patch.object(
+        with patch.object(
+            runner, "model_request", side_effect=fake_model_request
+        ) as model_mock, patch.object(
             runner, "apply_gate", side_effect=lambda raw, runtime: {"status": "passed", "response": raw}
         ):
             result = runner.run_case(
@@ -1005,6 +1015,20 @@ class ExternalFallbackV2Tests(unittest.TestCase):
         self.assertTrue(runtime["runtime_constraints"]["external_provider_call_attempted"])
         self.assertFalse(runtime["runtime_constraints"]["external_http_called"])
         self.assertTrue(runtime["triage_binding"]["do_not_distribute_triage_state_to_unrelated_findings"])
+        self.assertEqual(len(machine.provider.requests), 1)
+        self.assertEqual(model_mock.call_count, 1)
+        self.assertTrue(result["external_recheck"]["eligible"])
+        self.assertTrue(result["external_recheck"]["attempted"])
+        self.assertEqual(result["external_recheck"]["attempt_count"], 1)
+        self.assertFalse(result["external_recheck"]["final_reasoning_rerun"])
+        self.assertEqual(
+            result["external_recheck"]["outcome"],
+            "insufficient_information_preserved_after_single_recheck",
+        )
+        self.assertEqual(
+            result["external_recheck"]["final_conclusion_types"],
+            ["insufficient_information_needs_human_confirm"],
+        )
 
 
 if __name__ == "__main__":

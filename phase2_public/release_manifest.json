@@ -1,12 +1,13 @@
 {
-  "release": "phase2_public_v3_external_completion_gate",
+  "release": "phase2_public_v3_one_shot_external_recheck",
   "release_date": "2026-09-05",
   "scope": "model_only_public_release",
   "application_reasoning_model": "deepseek-v4-flash",
   "retrieval": {
     "order": ["Level 1", "Level 2", "Level 3", "Level 4"],
     "within_level_weights": {"bm25": 0.6, "dense": 0.4},
-    "external_fallback_after_local_exhaustion": true
+    "external_recheck_trigger": "preliminary_insufficient_information_needs_human_confirm",
+    "external_recheck_max_provider_calls_per_issue": 1
   },
   "document_ingestion": {
     "primary": "baseline_parser",
@@ -16,16 +17,17 @@
     "supplement_pool_lower_bound": 0.6
   },
   "hashes_sha256": {
-    "system_prompt_final.md": "8F05DC97193F9A2398AA3C2B6610849E094219A902110E9B9DA7D76A417EFCC8",
+    "system_prompt_final.md": "3FC4468A227A451B00F939313220B667DCE901B3A115D314FB0D271ACA729CFE",
     "llm_abstention_gate.py": "CA6FA73D1284C945922B22B01B89070B0675AB6263D326FFD25DEEA92E6AECAD",
-    "external_fallback_v2.py": "26E7D1435F188C1950A025F49EFFCEEBD48B3242BC1A35C25B0C74A1EB8067B5",
+    "external_fallback_v2.py": "25BF7F79D4D5D0E9EBFECCA4785DC5587B0B79D3AEB5672F1AA15BB5F939439A",
     "hierarchy_cascade_retriever.py": "05F57F31E1659A96F9D9C336732C9D1EC3B4EE9BB4DE4624C9B5D7FE192AAD10",
-    "evidence-grounded-contract-review/SKILL.md": "C550618FF05F884B35C421811A29E5C91A1CC49738780717641E2A6751336949",
-    "run_hierarchy_gated_llm_smoke.py": "5672A6817A4FA2CF5DD0691F293802925033710A7F26211E17F3F31E34C658C6",
+    "evidence-grounded-contract-review/SKILL.md": "918BF7E9E2F47B001671C2EAE6F6403B4A2B41D833546D06923F98223B423D4E",
+    "run_hierarchy_gated_llm_smoke.py": "26A0E58E23994659E61C1C3967855D6019314594E022E2808A98E642971E13C1",
     "replay_stage3_gate_v2.py": "389DD3B41136141600A1A301F50092A43E43BD8626A23B67A205EDDB99EC76B5",
     "test_recommendation_comparison_v3.py": "9275449787876381D6127C5961693DAC71D8D28E5DF35F19BF57E65728A79BA7",
-    "test_external_finalization_gate_v1.py": "2288AD791E1007B91CC331CDB861859B990B7C18AAFF76C1F84087A3293AC2C1",
-    "full60_external_first_protocol_v1.md": "794069E9A3B4A65584A909ED0ACB881905C6BF668C8B95A9F664F9A130EA595C",
+    "test_external_fallback_v2.py": "55E77A71E1CE025AF4DAEEFAC3D876B3DB03CFA3D4847AF73703B0B49D1A6DA8",
+    "test_one_shot_external_recheck_v1.py": "AEE567B9C7657F1B11BE0C205982AF9780DC3C3265F4B26B10A07CD14FBB6E75",
+    "full60_one_shot_external_recheck_protocol_v1.md": "41A1D47CF05B6FB52BADC7DCB487D355C41C6C09BFDC908956F759CC9A5800A2",
     "stage3_v3_smoke_test_report_20260905.md": "382D6BCEA9A1CDB0F38E9A8855E0A581785B981689798D1190CAC8006C68560F"
   },
   "evaluation": {
@@ -46,10 +48,9 @@
     "stage3_v3_gate_block_rate": 0.0,
     "stage3_v3_saved60_offline_corrected": 59,
     "stage3_v3_saved60_offline_blocked": 1,
-    "stage3_v3_external_completion_status": "pending_article_level_scope_completion",
-    "full60_external_completion_required": true,
-    "full60_online_status": "not_started_waiting_for_completion_capable_external_provider",
-    "manifest_http_completion_capable": false
+    "full60_external_recheck_policy": "one_shot_after_preliminary_insufficient_information",
+    "full60_incomplete_recheck_final_state": "insufficient_information_needs_human_confirm",
+    "full60_online_status": "not_started_pending_user_approval"
   },
   "mandatory_overall_status": "requires_human_second_review",
   "excluded_from_public_release": [

@@ -185,16 +185,21 @@ Use external evidence only when `external_retrieval_enabled=true` and an actual 
 - External material must be human-confirmed before entering the final evidence chain.
 - Do not claim an external check was performed when no call log exists.
 - Keep external results out of local-only evaluation metrics.
-- For the full 60-item online evaluation, treat every runtime
-  `discovery.requested=true` or `verification.requested=true` as a pre-final
-  dependency. Require the requested mode to reach a completed state with
-  `external_search_completed=true`, complete configured-scope coverage, and
-  either `provider_execution` or a bound `human_attested_manual_discovery`
-  record before calling the final LLM.
-- A manifest lookup, successful page fetch without article-level retrieval,
-  `pending`, `failed`, partial scope, or missing attestation must produce only
-  an internal `waiting_for_external_retrieval` checkpoint. Do not produce a
-  final review row or human-deliverable result from that checkpoint.
+- For the full 60-item online evaluation, first run local Level 1–4 reasoning
+  and the deterministic gate. Treat that result as a non-deliverable
+  preliminary decision.
+- Only when the preliminary canonical conclusion is
+  `insufficient_information_needs_human_confirm`, run one external discovery
+  recheck for that issue. Never call the external provider more than once for
+  this recheck, and do not run a parallel verification call.
+- If the one-shot recheck supplies independently admissible, source-verified
+  article evidence, run one revised reasoning pass. Otherwise preserve
+  `insufficient_information_needs_human_confirm` as the final conclusion.
+  This includes manifest-only lookup, no hit, `pending`, `failed`, partial
+  scope, unverified candidates, and CECN-only material.
+- Never describe this limited recheck as an exhaustive search or upgrade it to
+  `no_applicable_legal_basis_found_needs_human_confirm` merely because it
+  returned no usable evidence.
 
 ## 5. Issue reasoning workflow
 
@@ -248,6 +253,11 @@ Use this precedence:
 1. `requires_human_legal_review`: admitted Level 1–4 evidence and located contract facts form a specific potential inconsistency, conflict, applicability question, or professional-interpretation issue.
 2. `no_supported_issue_found_within_review_scope`: sequential checking is complete, at least one usable legal source participated, and current evidence does not support a risk relationship.
 3. `insufficient_information`: sequential checking is complete but no admitted, locatable source covers the issue, or only supplement-only, warning, unverified external, blocked local, or otherwise inadmissible material remains.
+
+In the 60-item evaluation, canonicalise item 3 to
+`insufficient_information_needs_human_confirm`, use it to trigger the one-shot
+external recheck, and preserve it when that recheck adds no independently
+admissible evidence.
 
 `potential_risk` may remain an intermediate or risk-category label, but it is not the final conclusion when admitted legal evidence supports a specific risk; normalise that case to `requires_human_legal_review`.
 

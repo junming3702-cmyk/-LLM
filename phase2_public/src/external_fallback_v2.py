@@ -36,7 +36,6 @@ import requests
 
 
 SCHEMA_VERSION = "stage3_external_fallback_v2"
-EXTERNAL_FINALIZATION_CONTRACT_VERSION = "v1"
 
 NOT_CALLED = "not_called"
 PENDING_PROVIDER = "pending_provider"
@@ -55,90 +54,9 @@ TERMINAL_STATUSES = COMPLETED_STATUSES | {FAILED, NOT_CALLED}
 FIVE_STATE_EXPORTS = {NOT_CALLED, "pending", FAILED, COMPLETED_NO_HIT, "hit"}
 
 DISCOVERY_REASON = "no_usable_applicable_local_level_1_to_4_basis"
-
-
-def external_finalization_readiness(audit: Mapping[str, Any] | None) -> dict[str, Any]:
-    """Fail closed before the final LLM whenever requested external work is incomplete.
-
-    This is intentionally independent of the prompt and post-LLM gate.  It is
-    evaluated after the external state machine and before any final reasoning
-    request.  A root-level completion claim is insufficient: every requested
-    discovery/verification mode must carry a completed status, an accepted
-    scope-completion basis, and actual scope coverage (or a bound human
-    attestation).
-    """
-
-    result: dict[str, Any] = {
-        "contract_version": EXTERNAL_FINALIZATION_CONTRACT_VERSION,
-        "required": False,
-        "ready_for_final_llm": False,
-        "status": "invalid_external_audit",
-        "requested_modes": [],
-        "completed_modes": [],
-        "reasons": [],
-    }
-    if not isinstance(audit, Mapping):
-        result["reasons"] = ["external_retrieval_audit_missing_or_invalid"]
-        return result
-
-    requested_records: list[tuple[str, Mapping[str, Any]]] = []
-    for mode in ("discovery", "verification"):
-        record = audit.get(mode)
-        if isinstance(record, Mapping) and record.get("requested") is True:
-            requested_records.append((mode, record))
-    result["requested_modes"] = [mode for mode, _ in requested_records]
-    result["required"] = bool(requested_records)
-    if not requested_records:
-        result.update(
-            {
-                "ready_for_final_llm": True,
-                "status": "not_triggered",
-                "reasons": [],
-            }
-        )
-        return result
-
-    reasons: list[str] = []
-    if audit.get("enabled") is not True:
-        reasons.append("external_fallback_not_enabled")
-    if audit.get("external_search_completed") is not True:
-        reasons.append("aggregate_external_search_not_completed")
-
-    completed_modes: list[str] = []
-    for mode, record in requested_records:
-        status = _text(record.get("status"))
-        if status not in COMPLETED_STATUSES:
-            reasons.append(f"{mode}_status_not_completed:{status or 'missing'}")
-        if record.get("external_search_completed") is not True:
-            reasons.append(f"{mode}_external_search_completed_not_true")
-
-        basis = _text(record.get("scope_completion_basis"))
-        coverage_ok = record.get("scope_coverage_ok") is True
-        if basis == "provider_execution":
-            if not coverage_ok:
-                reasons.append(f"{mode}_provider_scope_coverage_incomplete")
-        elif basis == "human_attested_manual_discovery":
-            if not (
-                coverage_ok
-                and record.get("human_attested") is True
-                and bool(_text(record.get("scope_attestation_id")))
-            ):
-                reasons.append(f"{mode}_human_scope_attestation_incomplete")
-        else:
-            reasons.append(f"{mode}_scope_completion_basis_not_accepted:{basis or 'missing'}")
-
-        if status in COMPLETED_STATUSES and record.get("external_search_completed") is True:
-            completed_modes.append(mode)
-
-    result["completed_modes"] = completed_modes
-    result["reasons"] = list(dict.fromkeys(reasons))
-    if reasons:
-        result["status"] = "waiting_for_external_retrieval"
-        return result
-
-    result["ready_for_final_llm"] = True
-    result["status"] = "external_retrieval_completed"
-    return result
+PRELIMINARY_INSUFFICIENT_RECHECK_REASON = (
+    "preliminary_insufficient_information_needs_human_confirm"
+)
 
 # Keep this policy in one importable pure predicate.  The post-LLM gate may
 # import ``is_usable_legal_basis`` so Stage 3 fallback eligibility and final
@@ -1076,6 +994,7 @@ class ExternalFallbackStateMachine:
         query_ids: Iterable[Any] = (),
         project_scope: Mapping[str, Any] | None = None,
         local_explicit_satisfaction: bool = False,
+        force_single_discovery_recheck: bool = False,
     ) -> dict[str, Any]:
         local = _json_safe(dict(local_search_completion))
         reasons = list(dict.fromkeys(_text(value) for value in verification_reasons if _text(value)))
@@ -1086,7 +1005,9 @@ class ExternalFallbackStateMachine:
         local_complete_no_hit = local.get("status") == COMPLETED_NO_HIT and local_no_basis
         local_discovery_eligible = bool(local.get("fallback_discovery_eligible", local_complete_no_hit))
         local_no_applicable_eligible = bool(local.get("no_applicable_status_eligible", local_complete_no_hit))
-        discovery_requested = local_discovery_eligible and not local_explicit_satisfaction
+        discovery_requested = bool(force_single_discovery_recheck) or (
+            local_discovery_eligible and not local_explicit_satisfaction
+        )
         verification_requested = bool(reasons)
 
         discovery = self._base_record(
@@ -1124,7 +1045,11 @@ class ExternalFallbackStateMachine:
                     legal_query_terms=safe_terms,
                     query_ids=ids,
                     project_scope=scope,
-                    trigger_reason=DISCOVERY_REASON,
+                    trigger_reason=(
+                        PRELIMINARY_INSUFFICIENT_RECHECK_REASON
+                        if force_single_discovery_recheck
+                        else DISCOVERY_REASON
+                    ),
                 )
             if verification_requested:
                 verification = self._execute(
@@ -1194,6 +1119,10 @@ class ExternalFallbackStateMachine:
             "http_called": any(record.get("http_called") for record in all_records),
             "http_call_count": sum(int(record.get("http_call_count") or 0) for record in all_records),
             "external_no_applicable_independent_source": no_applicable_independent_source,
+            "forced_single_discovery_recheck": bool(force_single_discovery_recheck),
+            "external_recheck_attempt_count": 1
+            if force_single_discovery_recheck and discovery.get("dispatch_attempted")
+            else 0,
             "external_failure_reason": "; ".join(dict.fromkeys(failures)),
             "external_pending_reasons": list(dict.fromkeys(pending_reasons)),
             "external_query_ids": list(dict.fromkeys(
@@ -1559,6 +1488,7 @@ __all__ = [
     "NOT_CALLED",
     "PENDING_HUMAN_SCOPE",
     "PENDING_PROVIDER",
+    "PRELIMINARY_INSUFFICIENT_RECHECK_REASON",
     "ProviderResponse",
     "build_local_search_completion",
     "derive_verification_reasons",

@@ -39,10 +39,10 @@ from external_fallback_v2 import (
     ExternalFallbackStateMachine,
     ManifestHttpProvider,
     build_local_search_completion,
-    derive_verification_reasons,
-    external_finalization_readiness,
+    is_usable_legal_basis,
     load_external_manifest,
 )
+from conclusion_contract_v2 import INSUFFICIENT_INFORMATION_NEEDS_HUMAN_CONFIRM
 from llm_abstention_gate import apply_gate
 from llm_response_parser_v1 import channel_diagnostic_snapshot, select_final_response
 from run_deepseek_llm_reasoning_smoke import load_api_key
@@ -408,6 +408,54 @@ def build_external_provider(
     raise ValueError(f"Unsupported external provider: {provider_name}")
 
 
+def gated_conclusion_types(gate_result: dict[str, Any]) -> list[str]:
+    """Read canonical conclusion states from a deterministic gate result."""
+
+    response = gate_result.get("response") if isinstance(gate_result, dict) else None
+    findings = response.get("findings") if isinstance(response, dict) else None
+    if not isinstance(findings, list):
+        return []
+    return [
+        str(finding.get("conclusion_type") or "").strip()
+        for finding in findings
+        if isinstance(finding, dict)
+    ]
+
+
+def eligible_for_one_shot_external_recheck(gate_result: dict[str, Any]) -> bool:
+    """Trigger only from a valid preliminary information-insufficient result."""
+
+    if not isinstance(gate_result, dict) or gate_result.get("blocked") is True:
+        return False
+    return INSUFFICIENT_INFORMATION_NEEDS_HUMAN_CONFIRM in gated_conclusion_types(
+        gate_result
+    )
+
+
+def run_final_reasoning(
+    *,
+    api_key: str,
+    prompt: str,
+    runtime_input: dict[str, Any],
+    max_tokens: int,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Run one final-reasoning pass and apply the deterministic gate."""
+
+    response = model_request(
+        api_key,
+        prompt,
+        runtime_input,
+        max_tokens=max_tokens,
+        response_contract="final_review",
+        thinking_mode="enabled",
+        reasoning_effort="low",
+    )
+    raw: Any = response.get("parsed")
+    if raw is None:
+        raw = response.get("selected_text", "")
+    return response, apply_gate(raw, runtime_input)
+
+
 def run_case(
     *,
     api_key: str,
@@ -421,7 +469,6 @@ def run_case(
     compact_final_output: bool,
     experiment_run_id: str,
     external_fallback: ExternalFallbackStateMachine | None = None,
-    require_complete_external_before_final: bool = False,
 ) -> dict[str, Any]:
     query = label["document_excerpt"]
     retrieval_queries = [
@@ -687,15 +734,6 @@ def run_case(
         retrieved_evidence,
         local_explicit_satisfaction=local_explicit_satisfaction,
     )
-    verification_reasons = derive_verification_reasons(
-        {
-            "issue_id": label["issue_id"],
-            "levels": compact_levels,
-            "stopped_at_level": stopped_at,
-        },
-        retrieved_evidence,
-        label_reasons=label.get("external_verification_reasons", []),
-    )
     external_terms = label.get("external_legal_query_terms", [])
     if not isinstance(external_terms, list):
         external_terms = []
@@ -710,11 +748,17 @@ def run_case(
         external_query_ids = []
     if not external_query_ids:
         external_query_ids = [f"{label['issue_id']}:legal-scope"]
-    fallback = external_fallback or ExternalFallbackStateMachine(enabled=False, provider=None)
-    external_audit = fallback.run(
+    fallback = external_fallback or ExternalFallbackStateMachine(
+        enabled=False, provider=None
+    )
+    preliminary_audit = ExternalFallbackStateMachine(
+        enabled=False,
+        provider=None,
+        manifest_entries=fallback.manifest_entries,
+    ).run(
         issue_id=label["issue_id"],
         local_search_completion=local_search_completion,
-        verification_reasons=verification_reasons,
+        verification_reasons=[],
         legal_query_terms=external_terms,
         query_ids=external_query_ids,
         project_scope={
@@ -726,9 +770,16 @@ def run_case(
         },
         local_explicit_satisfaction=local_explicit_satisfaction,
     )
-    external_finalization_gate = external_finalization_readiness(external_audit)
-    external_candidates = external_audit.get("candidates", [])
-    runtime_evidence = retrieved_evidence + external_candidates
+    preliminary_audit["enabled"] = fallback.enabled
+    preliminary_audit["policy_state"] = "awaiting_preliminary_conclusion"
+    for mode in ("discovery", "verification"):
+        if isinstance(preliminary_audit.get(mode), dict):
+            preliminary_audit[mode]["failure_reason"] = (
+                "not_triggered_before_preliminary_conclusion"
+            )
+    external_audit = preliminary_audit
+    external_candidates: list[dict[str, Any]] = []
+    runtime_evidence = list(retrieved_evidence)
 
     runtime_input = {
         "run_id": f"{experiment_run_id}-{label['issue_id']}",
@@ -778,10 +829,10 @@ def run_case(
             "external_no_applicable_independent_source": bool(
                 external_audit.get("external_no_applicable_independent_source")
             ),
-            "external_completion_required_before_final": bool(
-                require_complete_external_before_final
-            ),
-            "external_finalization_gate": external_finalization_gate,
+            "reasoning_stage": "preliminary_local_only",
+            "external_recheck_policy": "one_shot_after_preliminary_insufficient_information",
+            "external_recheck_max_attempts": 1,
+            "external_recheck_attempt_count": 0,
             "external_candidates_require_human_source_confirmation": True,
             "human_review_called": False,
             "gold_labels_available_to_runtime": False,
@@ -789,50 +840,97 @@ def run_case(
             "single_issue_compact_output": compact_final_output,
         },
     }
-    if (
-        require_complete_external_before_final
-        and external_finalization_gate.get("required") is True
-        and external_finalization_gate.get("ready_for_final_llm") is not True
-    ):
-        return {
-            "issue_id": label["issue_id"],
-            "started_and_finished_at": now_utc(),
-            "run_status": "waiting_for_external_retrieval",
-            "ready_for_human_delivery": False,
-            "model": MODEL_NAME,
-            "embedding_model": retriever.embedding_model_name,
-            "runtime_input": runtime_input,
-            "cascade_execution_audit": audit_levels,
-            "local_search_completion": local_search_completion,
-            "external_retrieval_audit": external_audit,
-            "external_finalization_gate": external_finalization_gate,
-            "final_llm_response": {
-                "ok": False,
-                "not_called": True,
-                "reason": "external_retrieval_must_complete_before_final_llm",
-            },
-            "post_llm_gate": None,
-            "offline_gold_comparison": {
-                "gold_fields_were_sent_to_api": False,
-                "risk_category": label.get("risk_category"),
-                "evidence_boundary": label.get("evidence_boundary"),
-                "gold_legal_basis_chunk_ids": label.get("legal_basis_chunk_ids", []),
-            },
-        }
     effective_final_prompt = final_prompt + FINAL_COMPACT_OUTPUT_CONTRACT if compact_final_output else final_prompt
-    final_response = model_request(
-        api_key,
-        effective_final_prompt,
-        runtime_input,
+    preliminary_response, preliminary_gate = run_final_reasoning(
+        api_key=api_key,
+        prompt=effective_final_prompt,
+        runtime_input=runtime_input,
         max_tokens=final_max_tokens,
-        response_contract="final_review",
-        thinking_mode="enabled",
-        reasoning_effort="low",
     )
-    raw_final: Any = final_response.get("parsed")
-    if raw_final is None:
-        raw_final = final_response.get("selected_text", "")
-    gate_result = apply_gate(raw_final, runtime_input)
+    recheck_eligible = eligible_for_one_shot_external_recheck(preliminary_gate)
+    recheck_attempted = False
+    final_reasoning_rerun = False
+    final_response = preliminary_response
+    gate_result = preliminary_gate
+
+    if recheck_eligible and fallback.enabled:
+        recheck_attempted = True
+        external_audit = fallback.run(
+            issue_id=label["issue_id"],
+            local_search_completion=local_search_completion,
+            verification_reasons=[],
+            legal_query_terms=external_terms,
+            query_ids=external_query_ids,
+            project_scope={
+                "project_location": context.get("project_location", {}),
+                "project_type": context.get("project_type", ""),
+                "jurisdiction_status": "confirmed"
+                if (context.get("project_location") or {}).get("human_confirmation")
+                == "confirmed"
+                else "uncertain",
+            },
+            local_explicit_satisfaction=local_explicit_satisfaction,
+            force_single_discovery_recheck=True,
+        )
+        external_candidates = list(external_audit.get("candidates", []))
+        admissible_external_candidates = [
+            row for row in external_candidates if is_usable_legal_basis(row)
+        ]
+        runtime_input["external_retrieval_audit"] = external_audit
+        runtime_input["external_sources_used"] = external_candidates
+        runtime_input["retrieved_legal_evidence"] = (
+            list(retrieved_evidence) + external_candidates
+        )
+        runtime_constraints = runtime_input["runtime_constraints"]
+        runtime_constraints.update(
+            {
+                "reasoning_stage": "post_external_recheck",
+                "external_recheck_attempt_count": 1,
+                "external_recheck_triggered_by": (
+                    INSUFFICIENT_INFORMATION_NEEDS_HUMAN_CONFIRM
+                ),
+                "preliminary_conclusion_types": gated_conclusion_types(
+                    preliminary_gate
+                ),
+                "external_retrieval_called": bool(
+                    external_audit.get("provider_call_attempted")
+                ),
+                "external_dispatch_attempted": bool(
+                    external_audit.get("dispatch_attempted")
+                ),
+                "external_provider_call_attempted": bool(
+                    external_audit.get("provider_call_attempted")
+                ),
+                "external_http_called": bool(external_audit.get("http_called")),
+                "external_search_status": external_audit.get(
+                    "external_search_status", "not_called"
+                ),
+                "external_search_completed": bool(
+                    external_audit.get("external_search_completed")
+                ),
+                "external_no_applicable_independent_source": bool(
+                    external_audit.get("external_no_applicable_independent_source")
+                ),
+                "external_admissible_candidate_count": len(
+                    admissible_external_candidates
+                ),
+                "preserve_preliminary_insufficient_when_no_admissible_external_evidence": True,
+            }
+        )
+        if admissible_external_candidates:
+            final_reasoning_rerun = True
+            final_response, gate_result = run_final_reasoning(
+                api_key=api_key,
+                prompt=effective_final_prompt,
+                runtime_input=runtime_input,
+                max_tokens=final_max_tokens,
+            )
+        else:
+            # Refresh the deterministic audit against the post-recheck runtime
+            # without asking the LLM to reinterpret unverified or absent evidence.
+            preliminary_gated_response: Any = preliminary_gate.get("response", {})
+            gate_result = apply_gate(preliminary_gated_response, runtime_input)
+
     return {
         "issue_id": label["issue_id"],
         "started_and_finished_at": now_utc(),
@@ -842,9 +940,28 @@ def run_case(
         "cascade_execution_audit": audit_levels,
         "local_search_completion": local_search_completion,
         "external_retrieval_audit": external_audit,
+        "external_recheck": {
+            "policy": "one_shot_after_preliminary_insufficient_information",
+            "eligible": recheck_eligible,
+            "attempted": recheck_attempted,
+            "attempt_count": 1 if recheck_attempted else 0,
+            "final_reasoning_rerun": final_reasoning_rerun,
+            "preliminary_conclusion_types": gated_conclusion_types(
+                preliminary_gate
+            ),
+            "final_conclusion_types": gated_conclusion_types(gate_result),
+            "outcome": (
+                "rechecked_and_reassessed_with_admissible_external_evidence"
+                if final_reasoning_rerun
+                else "insufficient_information_preserved_after_single_recheck"
+                if recheck_attempted
+                else "not_triggered"
+            ),
+        },
+        "preliminary_llm_response": preliminary_response,
+        "preliminary_post_llm_gate": preliminary_gate,
         "final_llm_response": final_response,
         "post_llm_gate": gate_result,
-        "external_finalization_gate": external_finalization_gate,
         "run_status": "completed",
         "ready_for_human_delivery": True,
         "offline_gold_comparison": {
@@ -888,24 +1005,14 @@ def main() -> int:
         help="Separate allowlisted public-source manifest used by the external adapter.",
     )
     parser.add_argument("--external-timeout-seconds", type=float, default=20.0)
-    parser.add_argument(
-        "--require-complete-external-before-final",
-        action="store_true",
-        help=(
-            "Do not call the final LLM or write a deliverable result while a "
-            "triggered external discovery/verification mode is incomplete. "
-            "This is automatically enforced by --all-issues."
-        ),
-    )
     args = parser.parse_args()
 
-    require_complete_external_before_final = bool(
-        args.require_complete_external_before_final or args.all_issues
-    )
-    if require_complete_external_before_final and not args.enable_external_fallback:
+    if args.all_issues and (
+        not args.enable_external_fallback or args.external_provider == "none"
+    ):
         parser.error(
-            "complete external retrieval is required before final output; "
-            "enable --enable-external-fallback and configure a completion-capable provider"
+            "the 60-item run requires --enable-external-fallback and an actual "
+            "external provider for the one-shot insufficient-information recheck"
         )
 
     output_root = args.output_root
@@ -978,14 +1085,13 @@ def main() -> int:
             "manifest_load_error": external_manifest_error,
             "scope_policy": "manifest_guided_finite_lookup_is_not_exhaustive_discovery",
             "candidate_policy": "external_candidates_require_human_source_confirmation_and_never_auto_admitted",
-            "completion_required_before_final": require_complete_external_before_final,
-            "final_output_policy": "no final LLM call or deliverable result while triggered external retrieval is incomplete",
+            "recheck_policy": "one_shot_after_preliminary_insufficient_information",
+            "recheck_limit_per_issue": 1,
+            "incomplete_recheck_output_policy": "preserve_insufficient_information_needs_human_confirm",
         },
         "results": [],
         "completed_count": 0,
-        "pending_external_count": 0,
     }
-    pending_external_dir = output_root / ".pending_external"
     for issue_id in issue_ids:
         result_path = output_root / f"{issue_id}.json"
         if args.resume and result_path.exists():
@@ -1014,30 +1120,7 @@ def main() -> int:
             compact_final_output=args.compact_final_output,
             experiment_run_id=args.run_id,
             external_fallback=external_fallback,
-            require_complete_external_before_final=require_complete_external_before_final,
         )
-        if result.get("run_status") == "waiting_for_external_retrieval":
-            pending_external_dir.mkdir(parents=True, exist_ok=True)
-            checkpoint_path = pending_external_dir / f"{issue_id}.json"
-            checkpoint_path.write_text(
-                json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
-            manifest["results"].append(
-                {
-                    "issue_id": issue_id,
-                    "status": "waiting_for_external_retrieval",
-                    "ready_for_human_delivery": False,
-                    "checkpoint_file": str(checkpoint_path),
-                }
-            )
-            manifest["pending_external_count"] = int(
-                manifest.get("pending_external_count") or 0
-            ) + 1
-            (output_root / "manifest.in_progress.json").write_text(
-                json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
-            print(f"WAIT_EXTERNAL {issue_id}", flush=True)
-            continue
         result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
         manifest["results"].append(
             {
@@ -1052,23 +1135,6 @@ def main() -> int:
             json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
         )
         print(f"DONE {issue_id}", flush=True)
-    if manifest.get("pending_external_count"):
-        in_progress_path = output_root / "manifest.in_progress.json"
-        in_progress_path.write_text(
-            json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
-        print(
-            json.dumps(
-                {
-                    "manifest_in_progress": str(in_progress_path),
-                    "completed": manifest.get("completed_count", 0),
-                    "pending_external": manifest.get("pending_external_count", 0),
-                    "final_output_written": False,
-                },
-                ensure_ascii=False,
-            )
-        )
-        return 3
     manifest_path = output_root / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps({"manifest": str(manifest_path), "completed": len(issue_ids)}, ensure_ascii=False))

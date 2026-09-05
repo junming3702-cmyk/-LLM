@@ -29,15 +29,19 @@ milestones and do not create additional public product phases.
   `第二十三条` before unsupported-citation checks;
 - retained the five-state conclusion contract and mandatory human second review.
 
-## 2026-09-05 — External-completion pre-final gate
+## 2026-09-05 — One-shot external recheck after local abstention
 
-- made completed external discovery/verification a precondition for the full
-  60-item online reasoning run whenever a mode is triggered;
-- prevented the final DeepSeek call and human-deliverable output while external
-  status is pending, failed, manifest-only or missing scope completion evidence;
-- retained incomplete cases only as internal `waiting_for_external_retrieval`
-  checkpoints and withheld the final batch manifest until all cases are ready;
-- added deterministic tests for provider-completed and human-attested scope paths.
+- superseded the external-completion blocking gate with the approved two-stage
+  policy: local-only preliminary reasoning first, then one external discovery
+  recheck only for `insufficient_information_needs_human_confirm`;
+- limited the external provider to one call per eligible issue and disabled a
+  parallel verification call in this 60-item experiment;
+- preserved `insufficient_information_needs_human_confirm` after pending,
+  failed, no-hit, manifest-only, unverified or CECN-only recheck outcomes;
+- permitted one revised LLM pass only when the recheck adds independently
+  admissible, source-verified article evidence;
+- retained preliminary response, recheck call audit and final response as
+  separate records for reproducibility.
 
 ## Pending work
 

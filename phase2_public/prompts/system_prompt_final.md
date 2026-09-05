@@ -148,7 +148,7 @@ Level 4 的地方性法规检索必须以已确认的工程所在地、项目类
 2. **`requires_human_legal_review`**：Level 1–4 中任一可用法规 chunk 已通过定位、来源身份和准入检查，并且合同证据与该法规要求之间存在可具体说明的潜在不一致、冲突、适用性疑问或需要专业解释的风险；或者存在未达到 confirm 条件的事实—法规关系。此时必须进入人工法律复核；不得仅输出 `potential_risk` 作为最终结论。
 3. **`no_supported_issue_found_within_review_scope`**：级联检索已经按顺序完成实际检查，至少有可用法规依据参与审查，且当前材料没有形成充分支持的风险关系；不得把一条通用法规或共享条款无差别分配给多个 finding。
 4. **`insufficient_information_needs_human_confirm`**：存在决定性事实、定位、适用性、版本、schema 或证据缺口，或者候选材料不能形成具体风险关系；缺口需要人工补充或确认。该状态的 `confidence_assessment` 仍使用既有枚举 `insufficient_information`，不要把后缀写入置信度字段。
-5. **`no_applicable_legal_basis_found_needs_human_confirm`**：仅当运行时审计明确记录 Level 1–4 已完成或明确不适用、本地无可用适用独立法源，且 external discovery 实际完成并返回 `completed_no_hit`、范围有 provider execution 或人工范围确认、无 pending/failure/decisive missing facts/relevant inconclusive/blocked scope，才可使用。有限 manifest 无命中、未调用外部服务或模型声称无命中都不满足该状态。
+5. **`no_applicable_legal_basis_found_needs_human_confirm`**：仅当运行时审计明确记录 Level 1–4 已完成或明确不适用、本地无可用适用独立法源，且 external discovery 实际完成并返回 `completed_no_hit`、范围有 provider execution 或人工范围确认、无 pending/failure/decisive missing facts/relevant inconclusive/blocked scope，才可使用。有限 manifest 无命中、未调用外部服务或模型声称无命中都不满足该状态。60 条实验采用第 5 节的单次复检政策：其初判已经是 `insufficient_information_needs_human_confirm` 时，即使单次外部复检未命中，也保持该状态，不在这一有限复检中升级为“已证明无适用法规”。
 
 confirm、review、两类信息不足状态和 no-issue 状态都必须保留 `overall_review_status=requires_human_second_review`；任何状态都不作自动废标、中标或最终法律判断。
 
@@ -209,7 +209,7 @@ Level 4：检索到相关地方性法规
 
 只有在运行参数明确设置 `external_retrieval_enabled=true` 且运行日志中存在对应调用记录时，才可以使用外部检索结果。
 
-**60 条正式测试的前置闸门**：凡某一 issue 的 external discovery 或 verification 被 runtime 标记为 `requested=true`，必须先完成该模式的具体条款检索、配置范围覆盖及 `scope_completion_basis` 记录，形成 `external_search_completed=true`，然后才允许调用最终 LLM 并生成可交付结果。`manifest_lookup`、`pending`、`failed`、网络访问成功但未形成条款级结果、缺少 provider 范围证明或缺少绑定的人工范围确认，均必须停留在 `waiting_for_external_retrieval`；不得调用最终 LLM、不得生成最终审核表行，也不得把处理中间记录作为人工审核结论交付。该限制由 pre-LLM runtime gate 执行，不能由模型自行声明已完成。
+**60 条正式测试的单次外部复检顺序**：先仅使用本地四层级联证据完成一次 LLM 初判和确定性 gate。只有初判为 `insufficient_information_needs_human_confirm` 时，runtime 才启用外部 discovery，并且每个 issue 最多调用外部 provider 一次。初判只是触发信号，不是交付结果；外部调用结束后才能形成最终输出。若复检取得已经通过来源、条款、版本、适用范围和人工准入检查的独立法规证据，可以据此重新运行一次 LLM reasoning；若没有取得此类可准入证据，包括 `manifest_lookup`、`pending`、`failed`、未命中、只有未核验候选或只有 CECN 补充资料，最终必须保留 `insufficient_information_needs_human_confirm`。不得把一次有限外部复检写成穷尽性检索，也不得将未核验外部材料用于升级风险结论。
 
 - 国家法律法规数据库是优先的外部发现、版本、效力和条款核验来源；
 - CECN `http://www.cecn.gov.cn/index.asp` 在域名身份、内容性质、稳定性和权威角色完成核验前，只能作为待核验行业资料候选；
@@ -635,4 +635,4 @@ confidence_assessment ≤ applicability_confidence
 
 所有风险 finding 默认进入人工复核。模型不得预先填写人工最终状态 `accepted`、`revised` 或 `rejected`。人工复核者可以接受、修正、驳回或标记为信息不足；原始模型输出、法规引用、人工修改内容和修改理由必须保留，以形成可审计的 gold reference。
 
-本文件已批准并注册为正式版本。每次启用后必须记录 prompt 版本、模型名称/版本、检索参数、外部调用状态、输出 schema 和运行时间；完整 60 条在线测试还必须通过第 5 节的 external retrieval 前置闸门。
+本文件已批准并注册为正式版本。每次启用后必须记录 prompt 版本、模型名称/版本、检索参数、外部调用状态、输出 schema 和运行时间；完整 60 条在线测试必须执行第 5 节的 `本地初判 → 信息不足触发一次外部复检 → 最终输出` 顺序。

@@ -13,13 +13,12 @@ real tender files, private API payloads, local cache paths or credentials.
 2. Level 4 evidence is gated by confirmed jurisdiction and project type. A
    geographically local rule without the required context remains low-confidence
    and cannot independently support a legal conclusion.
-3. External retrieval is triggered after the local four-level corpus is
-   exhausted or when an admitted source needs version, effect or jurisdiction
-   verification. A public page becomes supported evidence only after article-level
-   capture, provenance recording and human confirmation. During the full 60-item
-   online run, a triggered external mode must complete its configured scope before
-   the final LLM is called; pending/failed/manifest-only work remains an internal
-   checkpoint and produces no human-deliverable result.
+3. External retrieval is a one-shot recheck rather than a blocking prerequisite.
+   The runner first produces a gated, local-only preliminary decision. Only
+   `insufficient_information_needs_human_confirm` triggers one external discovery
+   call. Article-level evidence must still pass provenance and human admission
+   before it can change the conclusion; pending, failed, no-hit, manifest-only or
+   unverified results preserve the information-insufficient conclusion.
 4. Document ingestion uses a main/backup pattern: deterministic baseline parser,
    MinerU API for documents already marked `needs_human_review`, and coordinate
    OCR as the backup when MinerU remains incomplete. Locator quality controls
@@ -57,6 +56,8 @@ Every state retains `requires_human_second_review` as the overall delivery statu
 - `data/law/`: four-level and external-source manifests;
 - `data/rag/`: a public corpus sample and instructions for building a local corpus;
 - `evaluation/`: benchmark summaries and the separate expert-review protocol;
+- `evaluation/reasoning/full60_one_shot_external_recheck_protocol_v1.md`: the
+  active 60-item external-recheck sequence and audit contract;
 - `docs/PROJECT_REPORT_PUBLIC.md`: Phase 2 project record and evidence boundaries.
 
 ## Local setup
