@@ -327,6 +327,7 @@ Each finding must preserve:
 - conflict note, conservative reasoning, conclusion type, and evidence boundary;
 - recommended human action and human-review status;
 - substantive assistant recommendation;
+- a structured contract-to-law comparison for every risk finding;
 - optional internal processing label.
 
 For each legal-evidence item, retain at least:
@@ -365,9 +366,22 @@ Create one row per finding with:
 
 The assistant recommendation must contain:
 
+- `recommendation_contract_version`;
+- gate-derived `fact_law_comparison` with the verbatim contract excerpt and locator, admitted legal requirement quotation, identified difference, comparison status, and provenance;
 - `substantive_conclusion`: what the admitted evidence currently indicates;
 - `recommended_handling`: the specific human check or handling step;
 - `supporting_legal_evidence`: only actual retrieved and admitted evidence.
+
+For every risk finding, write the recommendation in this order:
+
+1. quote the contract content and its runtime locator;
+2. identify the admitted law and article and quote the relevant legal requirement;
+3. explain how the contract content differs from that requirement;
+4. give the LLM's specific recommendation for human verification or handling.
+
+Do not reduce the comparison to “inconsistent with Article X”. The model must provide a `fact_law_comparison` object containing an admitted `supporting_chunk_id` and a concrete `difference_summary`. The gate replaces the contract and legal quotations with runtime evidence before delivery.
+
+Use “合同内容不符合……” only for `requires_human_legal_confirm` after trusted runtime relation validation. For `requires_human_legal_review`, use “合同内容可能不符合……” and label the difference as LLM-identified and pending human review. If the contract excerpt, admitted legal quotation, or concrete difference is missing, do not say “不符合”; report that the comparison chain is incomplete. Abstention and no-issue states must not invent a difference.
 
 For a possible rejection or other adverse outcome, say “建议人工审查是否构成依法否决投标、拒收投标或其他法定处理情形”; never issue the decision yourself.
 

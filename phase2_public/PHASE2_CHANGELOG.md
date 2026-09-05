@@ -17,6 +17,18 @@ milestones and do not create additional public product phases.
 - separated public model artifacts from private real-project materials;
 - relocated the active Git worktree and local model cache to the E-drive workspace.
 
+## 2026-09-05 — Stage 3 recommendation contract v3
+
+- promoted the approved system prompt from v9 to final v10;
+- added a mandatory `fact_law_comparison` for risk findings;
+- rebuilt recommendations in the order contract evidence → admitted legal
+  requirement → concrete difference → human-review action;
+- limited definite “不符合” wording to trusted runtime-confirmed relations and
+  retained qualified “可能不符合” wording for potential risks;
+- normalised Arabic and Chinese article-number forms such as `第23条` and
+  `第二十三条` before unsupported-citation checks;
+- retained the five-state conclusion contract and mandatory human second review.
+
 ## Pending work
 
 - create an independently sampled hold-out or coverage/control set;

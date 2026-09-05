@@ -12,6 +12,7 @@
 
 # Local/private inputs and outputs
 .local_cache/
+.local_runs/
 private_archive/
 raw_inputs/
 private_inputs/

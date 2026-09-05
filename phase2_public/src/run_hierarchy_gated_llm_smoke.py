@@ -118,12 +118,18 @@ The one finding must be concise and include: `finding_id`, `issue_id`,
 `risk_category`, `risk_severity`, `legal_element_coverage`,
 `compliance_relation`, `obligation_phase`, `requirement_lifecycle`,
 `severity_basis`, `scope_assessment`, `legal_evidence`,
-`reasoning_conclusion`, `conclusion_type`, `evidence_boundary`,
+`fact_law_comparison`, `reasoning_conclusion`, `conclusion_type`, `evidence_boundary`,
 `confidence_assessment`, `recommended_human_action`, and
 `human_review_status`. In `legal_evidence`, cite only supplied `chunk_id`
 values and do not repeat the full legal quote. Keep each explanatory field
 under 350 Chinese characters. The gate will restore authoritative evidence
 metadata and the original document excerpt.
+
+For every risk finding, `fact_law_comparison` must contain an admitted
+`supporting_chunk_id` and a concise `difference_summary` that states the
+contract position, the legal requirement, and the concrete difference. Do not
+reduce it to "inconsistent with Article X". For no-issue or abstention states,
+do not invent a difference.
 
 When the reviewed text is a tender-document rule that itself prescribes
 automatic bid rejection, invalid award, or another legal consequence, assess

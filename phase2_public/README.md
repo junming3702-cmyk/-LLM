@@ -24,6 +24,9 @@ real tender files, private API payloads, local cache paths or credentials.
 5. DeepSeek `deepseek-v4-flash` remains the application reasoning model. A
    deterministic post-LLM gate normalises response channels, repairs safe schema
    defects, blocks unsafe outputs and keeps every deliverable under human review.
+   Prompt v10 and recommendation contract v3 additionally require every risk
+   recommendation to show the located contract text, the admitted legal
+   requirement, their concrete difference, and the recommended human action.
 
 ## Operational result states
 

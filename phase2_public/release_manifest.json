@@ -1,5 +1,5 @@
 {
-  "release": "phase2_public_v1",
+  "release": "phase2_public_v2_stage3_recommendation_v3",
   "release_date": "2026-09-05",
   "scope": "model_only_public_release",
   "application_reasoning_model": "deepseek-v4-flash",
@@ -16,11 +16,15 @@
     "supplement_pool_lower_bound": 0.6
   },
   "hashes_sha256": {
-    "system_prompt_final.md": "D6F096A8B967E3E4459F4B1ED972BE6915E5C570885A6963FC126E873028FA91",
-    "llm_abstention_gate.py": "9BF734CF0AB85787EC68A4FC2FDA51F3A70DD104D343DF87664DB7A8A513EE9E",
+    "system_prompt_final.md": "CE5F4AD02147A06A3B21E0E1303A0EDD3472C152E3B66AAAD9F569EB327BD5DF",
+    "llm_abstention_gate.py": "CA6FA73D1284C945922B22B01B89070B0675AB6263D326FFD25DEEA92E6AECAD",
     "external_fallback_v2.py": "D43A3582A939B168EE557912B1763909510BDA0D9C681CF8DC0D518E7B2B3D09",
     "hierarchy_cascade_retriever.py": "05F57F31E1659A96F9D9C336732C9D1EC3B4EE9BB4DE4624C9B5D7FE192AAD10",
-    "evidence-grounded-contract-review/SKILL.md": "733909DEE1670B220FF54E315C313CDF3BC8FD8808ACF73F0892DD52434B40E7"
+    "evidence-grounded-contract-review/SKILL.md": "815479BC5F56E0F75E752DA0F8C31AEB508CC7044776922892AFBD002FB2B7C0",
+    "run_hierarchy_gated_llm_smoke.py": "8142A39992DCFE79C351D6449EFA2DA55647A430663B0890B00EF88964EA8F78",
+    "replay_stage3_gate_v2.py": "389DD3B41136141600A1A301F50092A43E43BD8626A23B67A205EDDB99EC76B5",
+    "test_recommendation_comparison_v3.py": "9275449787876381D6127C5961693DAC71D8D28E5DF35F19BF57E65728A79BA7",
+    "stage3_v3_smoke_test_report_20260905.md": "382D6BCEA9A1CDB0F38E9A8855E0A581785B981689798D1190CAC8006C68560F"
   },
   "evaluation": {
     "synthetic_gold_items": 60,
@@ -33,7 +37,14 @@
     "frozen_replay_three_class_agreement": 0.8166666667,
     "frozen_replay_macro_f1": 0.8121212121,
     "grounding_metrics": null,
-    "grounding_metrics_reason": "complete runtime evidence packets were absent from the derived replay"
+    "grounding_metrics_reason": "complete runtime evidence packets were absent from the derived replay",
+    "stage3_v3_online_smoke_items": 5,
+    "stage3_v3_final_stop_rate": 1.0,
+    "stage3_v3_final_strict_json_rate": 1.0,
+    "stage3_v3_gate_block_rate": 0.0,
+    "stage3_v3_saved60_offline_corrected": 59,
+    "stage3_v3_saved60_offline_blocked": 1,
+    "stage3_v3_external_completion_status": "pending_article_level_scope_completion"
   },
   "mandatory_overall_status": "requires_human_second_review",
   "excluded_from_public_release": [

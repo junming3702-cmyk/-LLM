@@ -62,6 +62,7 @@ SEVERITY_CAP_AT_MEDIUM = {
     "scope_or_version_uncertainty",
 }
 PROCESSING_LABEL_VALUES = {"accepted", "revised", "rejected"}
+RECOMMENDATION_COMPARISON_CONTRACT_VERSION = "v3"
 MANDATORY_MISSING_RELATION_TYPES = {
     "mandatory_material_missing",
     "mandatory_requirement_missing",
@@ -853,6 +854,7 @@ def _minimal_response(runtime_input: dict, reason: str) -> dict:
         "run_id": runtime_input.get("run_id", ""),
         "project_id": runtime_input.get("project_id", ""),
         "conclusion_contract_version": CONCLUSION_CONTRACT_VERSION,
+        "recommendation_comparison_contract_version": RECOMMENDATION_COMPARISON_CONTRACT_VERSION,
         "review_scope": runtime_input.get("review_scope", {}),
         "output_format": "review_table",
         "overall_review_status": "requires_human_second_review",
@@ -882,6 +884,7 @@ def _minimal_response(runtime_input: dict, reason: str) -> dict:
         },
         "stage3_decision_audit": {
             "conclusion_contract_version": CONCLUSION_CONTRACT_VERSION,
+            "recommendation_comparison_contract_version": RECOMMENDATION_COMPARISON_CONTRACT_VERSION,
             "confirmation_validation_available": False,
             "confirmation_candidate_count": 0,
             "confirmed_count": 0,
@@ -1719,6 +1722,7 @@ def _legal_basis_for_recommendation(finding: dict) -> list[dict]:
             "article": evidence.get("article", ""),
             "normative_level": evidence.get("normative_level", ""),
             "source_locator": evidence.get("source_locator", ""),
+            "legal_quote": evidence.get("legal_quote", ""),
             "legal_evidence_eligibility": evidence.get("legal_evidence_eligibility", ""),
             "reference_purpose": evidence.get("reference_purpose", ""),
         }
@@ -1727,18 +1731,212 @@ def _legal_basis_for_recommendation(finding: dict) -> list[dict]:
     ]
 
 
+def _normalise_quote_text(value: Any) -> str:
+    """Return readable source text without changing its substantive wording."""
+
+    text = re.sub(r"\[paragraph\s+\d+\]\s*", "", str(value or ""), flags=re.I)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _comparison_bigrams(value: Any) -> set[str]:
+    """Build lightweight Chinese/number anchors for deterministic sentence selection."""
+
+    text = _normalise_quote_text(value)
+    anchors = set(re.findall(r"\d+(?:\.\d+)?%?|[A-Za-z][A-Za-z0-9_-]+", text))
+    chinese = "".join(re.findall(r"[\u4e00-\u9fff]", text))
+    anchors.update(chinese[index : index + 2] for index in range(max(0, len(chinese) - 1)))
+    return {item for item in anchors if item}
+
+
+def _requirement_snippet(legal_quote: Any, comparison_context: Any) -> str:
+    """Select the most relevant verbatim sentence(s) from an admitted legal quote."""
+
+    quote = _normalise_quote_text(legal_quote)
+    if not quote:
+        return ""
+    sentences = [
+        sentence.strip()
+        for sentence in re.split(r"(?<=[。；])", quote)
+        if sentence.strip()
+    ]
+    if not sentences:
+        return quote[:480]
+    context_anchors = _comparison_bigrams(comparison_context)
+    ranked = sorted(
+        enumerate(sentences),
+        key=lambda pair: (
+            len(_comparison_bigrams(pair[1]).intersection(context_anchors)),
+            -pair[0],
+        ),
+        reverse=True,
+    )
+    selected_indexes = sorted(index for index, _ in ranked[: min(2, len(ranked))])
+    selected = "".join(sentences[index] for index in selected_indexes)
+    return selected[:480]
+
+
+def _basis_label(item: dict) -> str:
+    parts: list[str] = []
+    law = str(item.get("law") or "").strip()
+    if law:
+        display_law = re.sub(r"\s+(?:19|20)\d{6}$", "", law).strip()
+        parts.append(f"《{display_law}》")
+    for value in (item.get("article"), item.get("source_locator")):
+        value = str(value or "").strip()
+        if value and value not in parts:
+            parts.append(value)
+    return " ".join(parts)
+
+
+def _structured_difference(finding: dict, basis: list[dict], bounded: dict) -> tuple[str, str]:
+    """Return a difference statement and its provenance.
+
+    Runtime-bounded comparisons take precedence. Otherwise the model may
+    supply a structured comparison, but it remains a pending-human-review
+    statement and cannot upgrade the legal conclusion. Frozen responses are
+    supported through their already-gated reasoning text.
+    """
+
+    if bounded.get("eligible"):
+        difference = str(bounded.get("claim") or "").strip()
+        limitation = str(bounded.get("limitation") or "").strip()
+        return "".join(part for part in (difference, "；" if difference and limitation else "", limitation)), "runtime_bounded_review"
+
+    usable_ids = {str(item.get("chunk_id")) for item in basis if item.get("chunk_id")}
+    comparison = finding.get("fact_law_comparison")
+    if isinstance(comparison, dict):
+        chunk_id = str(comparison.get("supporting_chunk_id") or "").strip()
+        difference = str(comparison.get("difference_summary") or "").strip()
+        if (
+            difference
+            and (not chunk_id or chunk_id in usable_ids)
+            and not _unsupported_article_refs(difference, finding.get("legal_evidence", []))
+        ):
+            return difference, "model_structured_comparison_pending_human_review"
+
+    legacy_reasoning = str(finding.get("reasoning_conclusion") or "").strip()
+    if legacy_reasoning and not _unsupported_article_refs(
+        legacy_reasoning,
+        [item for item in finding.get("legal_evidence", []) if isinstance(item, dict)],
+    ):
+        return legacy_reasoning, "legacy_reasoning_pending_human_review"
+    return "", "unavailable"
+
+
+def _build_fact_law_comparison(finding: dict, basis: list[dict]) -> dict:
+    conclusion = canonicalize_conclusion_type(finding.get("conclusion_type"))
+    contract_excerpt = str(finding.get("document_excerpt") or "").strip()
+    contract_location = str(finding.get("document_location") or "").strip()
+    bounded = finding.get("runtime_bounded_review")
+    bounded = bounded if isinstance(bounded, dict) else {}
+    difference, difference_source = _structured_difference(finding, basis, bounded)
+    difference = difference.rstrip("。；;.!！?？ ")
+
+    comparison_context = " ".join(
+        value
+        for value in (
+            contract_excerpt,
+            difference,
+            finding.get("reasoning_conclusion", ""),
+        )
+        if value
+    )
+    requirements = []
+    for item in basis[:3]:
+        quote = _requirement_snippet(item.get("legal_quote"), comparison_context)
+        if not quote:
+            continue
+        requirements.append(
+            {
+                "chunk_id": item.get("chunk_id", ""),
+                "citation": _basis_label(item),
+                "legal_requirement": quote,
+            }
+        )
+
+    complete = bool(contract_excerpt and requirements and difference)
+    trusted_confirmation = bool(
+        isinstance(finding.get("confirmation_validation"), dict)
+        and finding["confirmation_validation"].get("trusted") is True
+    )
+    if complete and conclusion == REQUIRES_HUMAN_LEGAL_CONFIRM and trusted_confirmation:
+        status = "runtime_validated_requires_human_legal_confirm"
+    elif complete and conclusion == REQUIRES_HUMAN_LEGAL_REVIEW:
+        status = "pending_human_legal_review"
+    else:
+        status = "incomplete_or_not_applicable"
+    return {
+        "contract_content": {
+            "location": contract_location,
+            "verbatim_excerpt": contract_excerpt,
+        },
+        "legal_requirements": requirements,
+        "identified_difference": difference,
+        "comparison_status": status,
+        "comparison_source": difference_source,
+    }
+
+
+def _comparison_requirement_text(comparison: dict) -> str:
+    parts = []
+    for item in comparison.get("legal_requirements", []):
+        if not isinstance(item, dict):
+            continue
+        citation = str(item.get("citation") or "已准入法规").strip()
+        requirement = str(item.get("legal_requirement") or "").strip()
+        if requirement:
+            parts.append(f"{citation}关于“{requirement}”")
+    return "；".join(parts)
+
+
+ARTICLE_REFERENCE_PATTERN = r"第[一二三四五六七八九十百千万零〇0-9]+条"
+
+
+def _canonical_article_ref(value: Any) -> str:
+    """Normalise Arabic and common Chinese article numbers for comparison."""
+
+    match = re.fullmatch(ARTICLE_REFERENCE_PATTERN, str(value or "").strip())
+    if not match:
+        return str(value or "").strip()
+    token = match.group(0)[1:-1]
+    if token.isdigit():
+        return str(int(token))
+    digits = {"零": 0, "〇": 0, "一": 1, "二": 2, "三": 3, "四": 4,
+              "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+    if all(char in digits for char in token):
+        return str(int("".join(str(digits[char]) for char in token)))
+    total = 0
+    current = 0
+    for char in token:
+        if char in digits:
+            current = digits[char]
+        elif char == "十":
+            total += (current or 1) * 10
+            current = 0
+        elif char == "百":
+            total += (current or 1) * 100
+            current = 0
+        elif char == "千":
+            total += (current or 1) * 1000
+            current = 0
+        elif char == "万":
+            total = (total + current) * 10000
+            current = 0
+    return str(total + current)
+
+
 def _unsupported_article_refs(text: Any, evidence: list[dict]) -> set[str]:
-    cited = set(re.findall(r"第[一二三四五六七八九十百千万零〇0-9]+条", str(text or "")))
+    cited = set(re.findall(ARTICLE_REFERENCE_PATTERN, str(text or "")))
     allowed = {
-        match
+        _canonical_article_ref(match)
         for item in evidence
         if isinstance(item, dict) and _is_usable_legal_basis(item)
         for match in re.findall(
-            r"第[一二三四五六七八九十百千万零〇0-9]+条",
+            ARTICLE_REFERENCE_PATTERN,
             " ".join(str(item.get(key, "")) for key in ("article", "legal_quote")),
         )
     }
-    return cited - allowed
+    return {match for match in cited if _canonical_article_ref(match) not in allowed}
 
 
 def _default_processing_label(finding: dict) -> str:
@@ -1763,51 +1961,22 @@ def _default_substantive_recommendation(
     *,
     force_rebuild: bool = False,
 ) -> dict:
-    recommendation = finding.get("assistant_recommendation")
-    conclusion_state = canonicalize_conclusion_type(finding.get("conclusion_type"))
-    # A stale model recommendation may still say "no issue" after the gate
-    # has abstained.  Rebuild the recommendation for both information-limited
-    # states so a positive conclusion cannot survive the final consistency
-    # pass.
-    allow_model_recommendation = conclusion_state == NO_SUPPORTED_ISSUE_WITHIN_REVIEW_SCOPE
-    if isinstance(recommendation, dict) and allow_model_recommendation and not force_rebuild:
-        recommendation_text = " ".join(
-            str(recommendation.get(key, ""))
-            for key in ("substantive_conclusion", "recommended_handling")
-        )
-        unsupported_articles = _unsupported_article_refs(
-            recommendation_text,
-            [item for item in finding.get("legal_evidence", []) if isinstance(item, dict)],
-        )
-        if (
-            recommendation.get("substantive_conclusion")
-            and recommendation.get("recommended_handling")
-            and not unsupported_articles
-        ):
-            recommendation = dict(recommendation)
-            recommendation["supporting_legal_evidence"] = _legal_basis_for_recommendation(finding)
-            return recommendation
-
     basis = _legal_basis_for_recommendation(finding)
-    basis_names = []
-    for item in basis:
-        # ``source_locator`` is commonly identical to ``article``.  Do not
-        # render labels such as "第二十六条 第二十六条" in the human-review
-        # recommendation.
-        label_parts = []
-        for part in (item.get("law"), item.get("article"), item.get("source_locator")):
-            if part and part not in label_parts:
-                label_parts.append(part)
-        label = " ".join(label_parts)
-        if label:
-            basis_names.append(label)
-    basis_text = "、".join(basis_names) or "当前没有可作为独立依据的法规证据"
     conclusion = canonicalize_conclusion_type(finding.get("conclusion_type"))
-    category = finding.get("risk_category")
-    # Classify the substantive issue from the reasoning itself.  Human-action
-    # boilerplate routinely says "不得直接作出废标/否决投标决定" and must not
-    # create a false rejection-risk label.
-    combined = str(finding.get("reasoning_conclusion", ""))
+    bounded = finding.get("runtime_bounded_review")
+    bounded = bounded if isinstance(bounded, dict) else {}
+    if bounded.get("eligible"):
+        allowed_ids = {str(value) for value in bounded.get("supporting_chunk_ids", [])}
+        basis = [item for item in basis if str(item.get("chunk_id")) in allowed_ids]
+    comparison = _build_fact_law_comparison(finding, basis)
+    contract = comparison["contract_content"]
+    contract_text = (
+        f"（{contract.get('location') or '定位待补充'}）“"
+        f"{contract.get('verbatim_excerpt') or '当前调用未提供可定位的合同原文'}”"
+    )
+    requirement_text = _comparison_requirement_text(comparison)
+    difference = str(comparison.get("identified_difference") or "").strip()
+
     if conclusion == NO_SUPPORTED_ISSUE_WITHIN_REVIEW_SCOPE:
         substantive = "当前审查范围内未发现有充分证据支持的风险。"
         handling = "建议暂不将该条款列为风险项，但保留人工二次审核和审查范围限定。"
@@ -1818,43 +1987,46 @@ def _default_substantive_recommendation(
         substantive = "本地适用层级和已记录的外部法规发现均未找到可用的独立法规依据，当前不形成违规或合规判断。"
         handling = finding.get("recommended_human_action") or "建议人工确认检索范围、法规覆盖范围和是否存在未纳入当前语料库的适用法源。"
     elif conclusion == REQUIRES_HUMAN_LEGAL_CONFIRM:
-        substantive = f"运行时已验证合同事实与 {basis_text} 的直接法规关系，建议人工确认该明确冲突及其适用的后续处理。"
+        if comparison["comparison_status"] == "runtime_validated_requires_human_legal_confirm":
+            substantive = (
+                f"经运行时独立关系验证，合同内容{contract_text}不符合以下法规要求：{requirement_text}。"
+                f"合同内容与法规要求之间的具体差异为：{difference}。"
+            )
+        else:
+            substantive = (
+                "确认状态缺少完整的合同—法规比较链，不能仅凭法规条号表述为明确违规；"
+                "请先补全合同原文、法规要求原文和具体差异。"
+            )
         handling = finding.get("recommended_human_action") or "建议专业人员核对事实、法规适用条件和程序后确认；本结果不直接作出废标、中标或最终法律决定。"
     elif conclusion == REQUIRES_HUMAN_LEGAL_REVIEW:
-        bounded = finding.get("runtime_bounded_review", {})
-        if bounded.get("eligible"):
-            basis = [item for item in basis if item["chunk_id"] in bounded["supporting_chunk_ids"]]
+        if comparison["comparison_status"] == "pending_human_legal_review":
+            if bounded.get("eligible"):
+                comparison_evidence = _bounded_requirement_text(bounded)
+                substantive = (
+                    f"合同内容{contract_text}可能不符合以下法规要求。"
+                    f"{comparison_evidence}"
+                    f"LLM 识别、尚待人工复核的具体差异为：{difference}。"
+                )
+            else:
+                substantive = (
+                    f"合同内容{contract_text}可能不符合以下法规要求：{requirement_text}。"
+                    f"LLM 识别、尚待人工复核的具体差异为：{difference}。"
+                )
+        else:
             substantive = (
-                f"{bounded['claim']}：{bounded['document_location']}“{bounded['document_excerpt']}”。"
-                + _bounded_requirement_text(bounded)
-                + bounded["limitation"]
+                f"当前虽已召回法规证据，但尚未形成完整的合同—法规差异说明：合同内容{contract_text}；"
+                "缺少可核对的法规要求原文或具体差异，因此不能表述为不符合。"
             )
+        if bounded.get("eligible"):
             handling = bounded["human_action"] + "所有处理均须人工二次审核。"
         else:
-            fact = finding.get("document_excerpt") or "当前调用未提供可定位的合同原文"
-            location = finding.get("document_location") or "定位待补充"
-            substantive = (
-                f"待人工复核的事实为：{location}“{fact}”。"
-                f"本次已准入的对照条文：{basis_text}。"
-                "复核限于上述事实与具体适用要求的关系，不据此认定违反全部所列条文或作出最终法律处理。"
-            )
-            handling = "请人工逐项核对上述原文、所列条文的具体要求与适用条件，确认差异及完整材料后进行二次审核。"
-    elif "围标" in combined or "串标" in combined or "串通投标" in combined:
-        substantive = f"疑似存在围标/串标相关风险，涉及 {basis_text}。"
-        handling = finding.get("recommended_human_action") or "建议人工核对不同投标人的文件编制来源、项目管理成员、报价关系及其他串通投标事实。"
-    elif any(term in combined for term in ("否决投标", "废标", "无效投标", "拒收投标")):
-        substantive = f"疑似涉及依法否决投标、拒收投标或其他不利处理的法定情形，涉及 {basis_text}。"
-        handling = "建议人工依据所列法规核验事实是否达到依法否决、拒收或其他处理的法定条件；本结果不直接作出废标或中标决定。"
-    elif category == "cross_document_link_missing_or_inconsistent":
-        substantive = f"疑似存在跨文件证据不一致或关联缺失，涉及 {basis_text}。"
-        handling = finding.get("recommended_human_action") or "建议人工对照相关合同、投标文件、附件和版本记录，确认事实链后再作处理。"
-    elif category == "out_of_scope_or_unverifiable":
-        substantive = "该问题超出当前法规库可独立核验的范围，当前不形成具体法律违规结论。"
-        handling = finding.get("recommended_human_action") or "建议转交相应税务、技术标准或专业审批人员进行人工二次审核。"
+            handling = finding.get("recommended_human_action") or "请人工逐项核对合同原文、法规要求、适用条件和具体差异后进行二次审核。"
     else:
-        substantive = f"疑似存在与 {basis_text} 要求不一致的潜在合规风险。"
-        handling = finding.get("recommended_human_action") or "建议依据所列法规证据进行人工二次法律复核，不直接作出最终法律处理决定。"
+        substantive = "当前 finding 未形成可识别的结论状态，不能生成合同—法规差异判断。"
+        handling = "请修正结论状态并进行人工二次审核。"
     return {
+        "recommendation_contract_version": RECOMMENDATION_COMPARISON_CONTRACT_VERSION,
+        "fact_law_comparison": comparison,
         "substantive_conclusion": substantive,
         "recommended_handling": handling,
         "supporting_legal_evidence": basis,
@@ -2231,6 +2403,13 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
     _set_field(response, "run_id", runtime_input.get("run_id", ""), actions, "root")
     _set_field(response, "project_id", runtime_input.get("project_id", ""), actions, "root")
     _set_field(response, "conclusion_contract_version", CONCLUSION_CONTRACT_VERSION, actions, "root")
+    _set_field(
+        response,
+        "recommendation_comparison_contract_version",
+        RECOMMENDATION_COMPARISON_CONTRACT_VERSION,
+        actions,
+        "root",
+    )
     _set_field(response, "output_format", "review_table", actions, "root")
     _set_field(response, "overall_review_status", "requires_human_second_review", actions, "root")
     if not isinstance(response.get("findings"), list):
@@ -2778,6 +2957,7 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
 
     decision_audit = {
         "conclusion_contract_version": CONCLUSION_CONTRACT_VERSION,
+        "recommendation_comparison_contract_version": RECOMMENDATION_COMPARISON_CONTRACT_VERSION,
         "canonical_conclusion_states": list(CANONICAL_CONCLUSION_STATES),
         "confirmation_validation_available": confirmation_validation_available_count > 0,
         "confirmation_validation_available_count": confirmation_validation_available_count,

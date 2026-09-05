@@ -177,12 +177,13 @@ def replay(source_dir: Path, output_dir: Path) -> dict[str, Any]:
         raise RuntimeError("protected Stage 2/frozen source changed during replay")
     protected_digest = hashlib.sha256(json.dumps(protected_before, sort_keys=True).encode("utf-8")).hexdigest()
     implementation_files = [
-        "scripts/llm_abstention_gate.py", "scripts/test_post_llm_gate_v2.py",
-        "scripts/test_post_llm_recommendation_v1.py", "scripts/replay_stage3_gate_v2.py",
-        "prompts/system_prompt_final.md", "scripts/external_fallback_v2.py",
+        "src/llm_abstention_gate.py", "tests/test_post_llm_gate_v2.py",
+        "tests/test_post_llm_recommendation_v1.py", "tests/test_recommendation_comparison_v3.py",
+        "src/replay_stage3_gate_v2.py", "prompts/system_prompt_final.md",
+        "src/external_fallback_v2.py",
     ]
     manifest = {
-        "stage3_replay_version": "v2",
+        "stage3_replay_version": "v3-recommendation-contract",
         "replay_mode": "offline_saved60",
         "source_stage2_dir": str(source_dir),
         "output_dir": str(output_dir),
@@ -223,7 +224,7 @@ def replay(source_dir: Path, output_dir: Path) -> dict[str, Any]:
     }
     _write_json(output_dir / "manifest.json", manifest)
     lines = [
-        "# Stage 3 v2 saved-60 offline replay",
+        "# Stage 3 v3 saved-60 offline replay",
         "",
         "No DeepSeek, MinerU, PaddleOCR, or external retrieval call was made.",
         "Stage 2 source files were read only and were not modified.",
