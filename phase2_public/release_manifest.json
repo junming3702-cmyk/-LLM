@@ -1,0 +1,46 @@
+{
+  "release": "phase2_public_v1",
+  "release_date": "2026-09-05",
+  "scope": "model_only_public_release",
+  "application_reasoning_model": "deepseek-v4-flash",
+  "retrieval": {
+    "order": ["Level 1", "Level 2", "Level 3", "Level 4"],
+    "within_level_weights": {"bm25": 0.6, "dense": 0.4},
+    "external_fallback_after_local_exhaustion": true
+  },
+  "document_ingestion": {
+    "primary": "baseline_parser",
+    "conditional_enhancement": "MinerU_API",
+    "backup": "coordinate_OCR",
+    "high_trust_backmatch_threshold": 0.8,
+    "supplement_pool_lower_bound": 0.6
+  },
+  "hashes_sha256": {
+    "system_prompt_final.md": "D6F096A8B967E3E4459F4B1ED972BE6915E5C570885A6963FC126E873028FA91",
+    "llm_abstention_gate.py": "9BF734CF0AB85787EC68A4FC2FDA51F3A70DD104D343DF87664DB7A8A513EE9E",
+    "external_fallback_v2.py": "D43A3582A939B168EE557912B1763909510BDA0D9C681CF8DC0D518E7B2B3D09",
+    "hierarchy_cascade_retriever.py": "05F57F31E1659A96F9D9C336732C9D1EC3B4EE9BB4DE4624C9B5D7FE192AAD10",
+    "evidence-grounded-contract-review/SKILL.md": "733909DEE1670B220FF54E315C313CDF3BC8FD8808ACF73F0892DD52434B40E7"
+  },
+  "evaluation": {
+    "synthetic_gold_items": 60,
+    "historical_flat_bm25_recall_at_5": 0.865385,
+    "historical_flat_bm25_mrr": 0.743590,
+    "historical_flat_hybrid_recall_at_5": 0.903846,
+    "historical_flat_hybrid_mrr": 0.804029,
+    "strict_hierarchy_evidence_hit_at_5": 0.9808,
+    "strict_hierarchy_mrr_within_expected_level_phase": 0.9135,
+    "frozen_replay_three_class_agreement": 0.8166666667,
+    "frozen_replay_macro_f1": 0.8121212121,
+    "grounding_metrics": null,
+    "grounding_metrics_reason": "complete runtime evidence packets were absent from the derived replay"
+  },
+  "mandatory_overall_status": "requires_human_second_review",
+  "excluded_from_public_release": [
+    "credentials and environment files",
+    "private absolute paths and local caches",
+    "real project documents and derived raw outputs",
+    "personal or academic application materials",
+    "local model weights and virtual environments"
+  ]
+}

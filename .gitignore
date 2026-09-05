@@ -11,10 +11,14 @@
 *.key
 
 # Local/private inputs and outputs
+.local_cache/
+private_archive/
 raw_inputs/
 private_inputs/
 real_project/
 test2/
+test3/
+real_project_outputs/
 external_outputs/
 documents_raw/
 documents_processed/
@@ -45,3 +49,5 @@ __pycache__/
 Thumbs.db
 .idea/
 .vscode/
+*.inspect.ndjson
+*.in_progress.json

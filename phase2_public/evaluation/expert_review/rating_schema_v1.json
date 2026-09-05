@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Phase1ExpertBlindRating",
+  "type": "object",
+  "required": [
+    "expert_id",
+    "display_id",
+    "phase1_decision",
+    "evidence_sufficiency",
+    "confidence_1_to_5",
+    "rationale"
+  ],
+  "properties": {
+    "expert_id": {
+      "type": "string"
+    },
+    "display_id": {
+      "type": "string"
+    },
+    "phase1_decision": {
+      "enum": [
+        "no_supported_issue_found_within_review_scope",
+        "potential_non_compliance",
+        "insufficient_information"
+      ]
+    },
+    "evidence_sufficiency": {
+      "enum": [
+        "sufficient",
+        "partial",
+        "insufficient"
+      ]
+    },
+    "applicable_law": {
+      "type": "string"
+    },
+    "article": {
+      "type": "string"
+    },
+    "legal_evidence_locator_or_quote": {
+      "type": "string"
+    },
+    "confidence_1_to_5": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "risk_severity": {
+      "enum": [
+        "informational",
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "rationale": {
+      "type": "string"
+    },
+    "additional_information_needed": {
+      "type": "string"
+    },
+    "phase2_ai_recommendation_status": {
+      "enum": [
+        "accepted",
+        "revised",
+        "rejected",
+        "not_shown"
+      ]
+    },
+    "phase2_ai_evidence_correctness_1_to_5": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 5
+    },
+    "phase2_ai_usefulness_1_to_5": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 5
+    },
+    "phase2_final_decision": {
+      "enum": [
+        "no_supported_issue_found_within_review_scope",
+        "potential_non_compliance",
+        "insufficient_information",
+        "not_completed"
+      ]
+    },
+    "phase2_revision_note": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}
