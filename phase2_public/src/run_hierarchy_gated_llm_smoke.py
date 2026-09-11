@@ -48,6 +48,11 @@ from llm_response_parser_v1 import channel_diagnostic_snapshot, select_final_res
 from run_deepseek_llm_reasoning_smoke import load_api_key
 from triage_response_parser_v1 import diagnostic_snapshot as triage_diagnostic_snapshot
 from triage_response_parser_v1 import select_triage_response
+from experiment_integrity import (
+    RunJournal, code_inventory, digest, file_digest, request_http,
+    result_status, validate_runtime, write_new_json,
+)
+import uuid
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
@@ -165,6 +170,7 @@ def model_request(
     thinking_mode: str = "enabled",
     reasoning_effort: str | None = None,
 ) -> dict[str, Any]:
+    validate_runtime(runtime)
     body = {
         "model": MODEL_NAME,
         "messages": [
@@ -178,19 +184,10 @@ def model_request(
     }
     if thinking_mode == "enabled" and reasoning_effort:
         body["reasoning_effort"] = reasoning_effort
-    started = time.monotonic()
-    response = requests.post(
-        API_URL,
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        json=body,
-        timeout=180,
-    )
-    elapsed = round(time.monotonic() - started, 3)
-    try:
-        payload: dict[str, Any] = response.json()
-    except ValueError:
-        payload = {"non_json_http_body": response.text[:2000]}
-    choice = payload.get("choices", [{}])[0] if response.ok else {}
+    transport = request_http(API_URL, body, api_key, requests.post, timeout=180)
+    payload = transport["payload"]
+    choices = payload.get("choices")
+    choice = choices[0] if transport["ok"] and isinstance(choices, list) and choices else {}
     message = choice.get("message", {}) if isinstance(choice, dict) else {}
     if response_contract == "triage":
         selected = select_triage_response(message)
@@ -201,9 +198,18 @@ def model_request(
     else:
         raise ValueError(f"Unknown response contract: {response_contract}")
     return {
-        "http_status": response.status_code,
-        "ok": response.ok,
-        "elapsed_seconds": elapsed,
+        "http_status": transport["http_status"],
+        "ok": transport["ok"],
+        "elapsed_seconds": transport["elapsed_seconds"],
+        "transport_error": transport.get("transport_error"),
+        "request_body": transport["request_body"],
+        "raw_provider_payload": payload,
+        "cache_hit": transport.get("cache_hit", False),
+        "request_key": transport.get("request_key"),
+        "retry_count": transport.get("retry_count", 0),
+        "transport_attempts": transport.get("attempts", []),
+        "incurred_usage": transport.get("incurred_usage"),
+        "incurred_elapsed_seconds": transport.get("incurred_elapsed_seconds", transport["elapsed_seconds"]),
         "model_requested": MODEL_NAME,
         "model_returned": payload.get("model"),
         "thinking_mode_requested": thinking_mode,
@@ -220,7 +226,7 @@ def model_request(
         },
         "parsed": selected.get("parsed"),
         "selected_text": selected.get("selected_text", ""),
-        "error_payload": None if response.ok else payload,
+        "error_payload": None if transport["ok"] else payload,
     }
 
 
@@ -931,7 +937,7 @@ def run_case(
             preliminary_gated_response: Any = preliminary_gate.get("response", {})
             gate_result = apply_gate(preliminary_gated_response, runtime_input)
 
-    return {
+    result = {
         "issue_id": label["issue_id"],
         "started_and_finished_at": now_utc(),
         "model": MODEL_NAME,
@@ -971,6 +977,10 @@ def run_case(
             "gold_legal_basis_chunk_ids": label.get("legal_basis_chunk_ids", []),
         },
     }
+    result["assessment_status"] = result_status(result)
+    result["run_status"] = result["assessment_status"]["execution_status"]
+    result["ready_for_human_delivery"] = result["assessment_status"]["ready_for_human_delivery"]
+    return result
 
 
 def main() -> int:
@@ -987,6 +997,7 @@ def main() -> int:
     parser.add_argument("--embedding-model", default=DEFAULT_EMBEDDING_MODEL)
     parser.add_argument("--all-issues", action="store_true")
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--transport-max-attempts", type=int, choices=(1, 2), default=1)
     parser.add_argument(
         "--enable-external-fallback",
         action="store_true",
@@ -1006,6 +1017,8 @@ def main() -> int:
     )
     parser.add_argument("--external-timeout-seconds", type=float, default=20.0)
     args = parser.parse_args()
+    if not args.run_id or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_." for c in args.run_id) or args.run_id in {".", ".."}:
+        parser.error("run-id must be a safe, nonempty single path component")
 
     if args.all_issues and (
         not args.enable_external_fallback or args.external_provider == "none"
@@ -1028,6 +1041,7 @@ def main() -> int:
     final_prompt = PROMPT_FILE.read_text(encoding="utf-8")
     context_template = json.loads(args.project_context_file.read_text(encoding="utf-8"))
     retriever = StrictHierarchyHybridRetriever(embedding_model=args.embedding_model)
+    output_root = output_root / args.run_id
     output_root.mkdir(parents=True, exist_ok=True)
     external_manifest_entries: list[dict[str, Any]] = []
     external_manifest_error = ""
@@ -1092,53 +1106,61 @@ def main() -> int:
         "results": [],
         "completed_count": 0,
     }
+    binding = {
+        "method_version": "strict-cascade-experiment-b-v1",
+        "code_inventory": code_inventory(PACKAGE_ROOT),
+        "corpus_hash": retriever.corpus_sha256,
+        "context_hash": digest(context_template),
+        "effective_prompt_hash": digest(final_prompt + (FINAL_COMPACT_OUTPUT_CONTRACT if args.compact_final_output else "")),
+        "model_config": {"model": MODEL_NAME, "embedding_model": args.embedding_model,
+                         "top_k": args.top_k, "final_max_tokens": args.final_max_tokens,
+                         "triage_max_tokens": args.triage_max_tokens},
+        "external_config": manifest["external_fallback"],
+        "run_id": args.run_id,
+        "history": [],
+    }
+    journal = RunJournal(output_root / "audit", binding, resume=args.resume,
+                         max_attempts=args.transport_max_attempts)
+    manifest["experiment_binding"] = binding
+    manifest["cache_policy"] = "exact_actual_request_evidence_and_binding_not_case_id"
+    invocation = uuid.uuid4().hex
     for issue_id in issue_ids:
-        result_path = output_root / f"{issue_id}.json"
-        if args.resume and result_path.exists():
-            manifest["results"].append(
-                {
-                    "issue_id": issue_id,
-                    "status": "completed",
-                    "ready_for_human_delivery": True,
-                    "result_file": str(result_path),
-                    "resumed": True,
-                }
-            )
-            manifest["completed_count"] = int(manifest.get("completed_count") or 0) + 1
-            print(f"SKIP {issue_id} (existing result)", flush=True)
-            continue
+        result_path = output_root / "results" / f"{digest(issue_id)[:20]}-{invocation}.json"
         print(f"START {issue_id}", flush=True)
-        result = run_case(
-            api_key=api_key,
-            retriever=retriever,
-            final_prompt=final_prompt,
-            context_template=context_template,
-            label=labels[issue_id],
-            top_k=args.top_k,
-            final_max_tokens=args.final_max_tokens,
-            triage_max_tokens=args.triage_max_tokens,
-            compact_final_output=args.compact_final_output,
-            experiment_run_id=args.run_id,
-            external_fallback=external_fallback,
-        )
-        result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+        with journal.case(issue_id):
+            try:
+                result = run_case(
+                    api_key=api_key, retriever=retriever, final_prompt=final_prompt,
+                    context_template=context_template, label=labels[issue_id],
+                    top_k=args.top_k, final_max_tokens=args.final_max_tokens,
+                    triage_max_tokens=args.triage_max_tokens,
+                    compact_final_output=args.compact_final_output,
+                    experiment_run_id=args.run_id, external_fallback=external_fallback,
+                )
+            except Exception as exc:
+                result = {"issue_id": issue_id, "execution_error": type(exc).__name__,
+                          "run_status": "execution_failed", "ready_for_human_delivery": False}
+                result["assessment_status"] = result_status(result)
+            journal.event("case_finished", {"status": result["assessment_status"]})
+        write_new_json(result_path, result)
         manifest["results"].append(
             {
                 "issue_id": issue_id,
-                "status": "completed",
-                "ready_for_human_delivery": True,
+                "status": result["run_status"],
+                "ready_for_human_delivery": result["ready_for_human_delivery"],
                 "result_file": str(result_path),
             }
         )
-        manifest["completed_count"] = int(manifest.get("completed_count") or 0) + 1
+        manifest["completed_count"] += int(result["run_status"] == "completed")
+        manifest["attempted_count"] = len(manifest["results"])
         (output_root / "manifest.in_progress.json").write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
         )
         print(f"DONE {issue_id}", flush=True)
-    manifest_path = output_root / "manifest.json"
-    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({"manifest": str(manifest_path), "completed": len(issue_ids)}, ensure_ascii=False))
-    return 0
+    manifest_path = output_root / f"manifest-{invocation}.json"
+    write_new_json(manifest_path, manifest)
+    print(json.dumps({"manifest": str(manifest_path), "completed": manifest["completed_count"], "attempted": len(issue_ids)}, ensure_ascii=False))
+    return 0 if manifest["completed_count"] == len(issue_ids) else 2
 
 
 if __name__ == "__main__":

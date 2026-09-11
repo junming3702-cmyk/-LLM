@@ -52,3 +52,9 @@ Thumbs.db
 .vscode/
 *.inspect.ndjson
 *.in_progress.json
+
+# Experiment B: private run payloads and participant material are never public.
+outputs/
+paper_experiment_private/
+expert_returns/
+assessment_records.csv

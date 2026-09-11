@@ -936,6 +936,15 @@ def _canonicalize_evidence(finding: dict, runtime_input: dict, actions: list[str
 
         item = deepcopy(evidence)
         authoritative_fields = (
+            "source_id",
+            "file_hash",
+            "official_url",
+            "version",
+            "expiry_date",
+            "temporal_validity",
+            "source_status",
+            "extraction_status",
+            "extraction_method",
             "law",
             "article",
             "source_locator",

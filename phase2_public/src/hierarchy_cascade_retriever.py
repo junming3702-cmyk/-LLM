@@ -133,6 +133,14 @@ class RankedCandidate:
             or row.get("legal_evidence_eligibility") == "supplement_only"
         )
         return {
+            **{key: row[key] for key in (
+                "source_id", "file_hash", "source_url", "official_url", "version",
+                "effective_date", "expiry_date", "temporal_validity", "source_status",
+                "scope_classification", "geographic_scope", "project_type_scope",
+                "applicability_status", "applicability_basis", "applicability_confidence",
+                "evidence_support_confidence", "extraction_status", "extraction_method",
+                "parent_source_title",
+            ) if key in row},
             "rank_within_level_phase": rank,
             "chunk_id": row.get("chunk_id"),
             "law": row.get("title"),
