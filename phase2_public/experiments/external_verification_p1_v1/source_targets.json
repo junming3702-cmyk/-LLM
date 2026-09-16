@@ -1,0 +1,86 @@
+{
+  "schema": "external-verification-p1.targets.v1",
+  "purpose": "10 public-law verification targets. Assistant-prepared; none human-confirmed. Not a retrieval benchmark or current-law certification.",
+  "sources": [
+    {
+      "source_id": "SAMR-TENDER-2017",
+      "url": "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/bgt/art/2023/art_1f79dd79321441a0831f3aed697b4535.html",
+      "law_title": "中华人民共和国招标投标法",
+      "issuer": "全国人民代表大会常务委员会",
+      "version_label": "2017年修正文本",
+      "version_anchors": ["2017年12月27日"],
+      "actual_normative_level": "Level 1",
+      "instrument_type": "law",
+      "geographic_scope": "national",
+      "temporal_status": "pending_human_version_verification",
+      "targets": [
+        {"target_id":"P1-V01","article":"第十八条","anchor":"国家对投标人的资格条件有规定的，依照其规定"},
+        {"target_id":"P1-V02","article":"第二十三条","anchor":"截止时间至少十五日前"},
+        {"target_id":"P1-V03","article":"第二十七条","anchor":"投标文件应当对招标文件提出的实质性要求和条件作出响应"}
+      ]
+    },
+    {
+      "source_id": "CCGP-IMPLEMENTATION-2019",
+      "url": "https://www.ccgp.gov.cn/zcfg/gjfg/202309/t20230907_20661132.htm",
+      "law_title": "中华人民共和国招标投标法实施条例",
+      "issuer": "国务院",
+      "version_label": "2019年修订文本候选",
+      "version_anchors": ["2019年3月2日"],
+      "actual_normative_level": "Level 2",
+      "instrument_type": "administrative_regulation",
+      "geographic_scope": "national",
+      "temporal_status": "pending_human_version_verification",
+      "targets": [
+        {"target_id":"P1-V04","article":"第十六条","anchor":"不得少于5日"},
+        {"target_id":"P1-V05","article":"第二十六条","anchor":"投标保证金不得超过招标项目估算价的2%"},
+        {"target_id":"P1-V06","article":"第三十二条","anchor":"招标人不得以不合理的条件限制、排斥潜在投标人或者投标人"}
+      ]
+    },
+    {
+      "source_id": "NDRC-ORDER16-2018",
+      "url": "https://zfxxgk.ndrc.gov.cn/web/iteminfo.jsp?id=18461",
+      "law_title": "必须招标的工程项目规定",
+      "issuer": "国家发展和改革委员会",
+      "version_label": "2018年第16号令文本",
+      "version_anchors": ["2018年3月27日", "2018年6月1日"],
+      "actual_normative_level": "Level 3",
+      "instrument_type": "departmental_rule",
+      "geographic_scope": "national",
+      "temporal_status": "pending_human_version_verification",
+      "targets": [{"target_id":"P1-V07","article":"第五条","anchor":"施工单项合同估算价在400万元人民币以上"}]
+    },
+    {
+      "source_id": "NDRC-HISTORICAL-ORDER3-2000",
+      "url": "https://www.ndrc.gov.cn/xwdt/xwfb/200507/t20050708_958707_ext.html",
+      "law_title": "工程建设项目招标范围和规模标准规定",
+      "issuer": "国家发展计划委员会",
+      "version_label": "2000年文本；仅历史版本核验夹具",
+      "version_anchors": ["2000年5月1日"],
+      "actual_normative_level": "Level 3",
+      "instrument_type": "departmental_rule",
+      "geographic_scope": "national",
+      "temporal_status": "historical_only_not_for_current_admission",
+      "candidate_valid_to_exclusive": "2018-06-01",
+      "temporal_support_url": "https://app.www.gov.cn/govdata/gov/201803/21/421804/article.html",
+      "targets": [{"target_id":"P1-V08","article":"第七条","anchor":"200万元人民币以上"}]
+    },
+    {
+      "source_id": "ABA-SICHUAN-2003",
+      "url": "https://policy.mofcom.gov.cn/claw/clawContent.shtml?id=16663",
+      "previous_url": "https://ggzyjy.abazhou.gov.cn/ggzyjyzx/c106706/201309/1aa1d91ad82846aa92bd566b4f859164.shtml",
+      "url_change_reason": "Original source returned HTTP404 in live P1 run; alternative government-hosted copy remains pending provenance confirmation.",
+      "law_title": "四川省国家投资工程建设项目招标投标条例",
+      "issuer": "四川省人民代表大会常务委员会",
+      "version_label": "2003年制定文本候选",
+      "version_anchors": ["2003年9月25日", "2004年1月1日"],
+      "actual_normative_level": "Level 4",
+      "instrument_type": "local_regulation",
+      "geographic_scope": "四川省",
+      "temporal_status": "pending_human_version_verification",
+      "targets": [
+        {"target_id":"P1-V09","article":"第二条","anchor":"在四川省行政区域内的国家投资工程建设项目"},
+        {"target_id":"P1-V10","article":"第三条","anchor":"全部或者部分使用国有资金投资或者国家融资的项目"}
+      ]
+    }
+  ]
+}
