@@ -15,10 +15,15 @@ def main():
     parser.add_argument('--jurisdiction', required=True)
     parser.add_argument('--as-of', required=True)
     parser.add_argument('--reviews', type=Path)
+    parser.add_argument('--scope-id')
+    parser.add_argument('--task-spec-sha256')
+    parser.add_argument('--issue-id')
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=False)
     context = {'procurement_regime': args.regime, 'project_type': args.project_type,
                'jurisdiction': args.jurisdiction, 'as_of': args.as_of}
+    for name in ('scope_id', 'task_spec_sha256', 'issue_id'):
+        if getattr(args, name): context[name] = getattr(args, name)
     reviews = json.loads(args.reviews.read_text('utf-8')) if args.reviews else {}
     result = recheck(INSUFFICIENT, args.terms, context, load_catalogue(), SnapshotStore(args.cache), reviews=reviews, live=args.live)
     (args.out / 'discovery_report.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')

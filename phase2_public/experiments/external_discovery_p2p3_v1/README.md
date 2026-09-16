@@ -15,6 +15,7 @@ No original expert outputs, prompts, legal corpus or human responses are changed
 - Snapshots are content-addressed and checked against URL/raw/text/article hashes and exact locator spans. Hashes provide integrity, **not publisher authenticity**; provenance still needs human confirmation. A changed response requires a new cache/run directory.
 - Candidates retain actual normative level independently of acquisition channel. External national law is not relabelled Level 4.
 - Default admission is zero. Human sidecars bind candidate ID, source/quote hashes, title/version, time window, jurisdiction, project type, procurement regime, material facts and review of conditions/exceptions/cross-references. Human admission applies only to that exact context/window.
+- Optional experiment-scoped approval additionally binds scope ID, task-spec hash, registered issue IDs and their jurisdiction/type/regime/date hashes. It cannot be reused under a different case ID or by changing that case's registered project context. Full article `evidence_id` is deterministic from source ID, article and quote hash; it is generated for all candidates, without using labels.
 - Discovery does not turn no hit, HTTP error, empty page, missing facts or pending confirmation into `valid`. It preserves `insufficient_information_needs_human_confirm` until a separately gated reasoning run has a supported basis.
 - `citation_gate` blocks unadmitted/unknown citations and unsupported conclusions. It is a narrow boundary check, **not the full production reasoning gate or an Excel export integration**. Production/hybrid runner integration and A/B/C execution adapters remain pending P3 reference lock and subsequent verification.
 
@@ -34,7 +35,7 @@ For offline replay use the same cache, a **new** output directory and omit `--li
 
 ## P3 is started, not a completed benchmark
 
-`p3_tasks.pending.json` contains **30 AI-authored proposals**, distinct from the legacy 60-query set and expert case inputs. They include near-neighbour cases within families and share some development laws: not law-disjoint, not 30 independent projects, and not human-confirmed gold. They must not be used for tuning while intended as a holdout.
+`p3_tasks.pending.json` preserves the **initial 30 AI-authored proposals**, distinct from the legacy 60-query set and expert case inputs. They include near-neighbour cases within families and share some development laws: not law-disjoint and not 30 independent projects. Subsequent operator approvals are stored separately and privately; the public proposal file alone is not proof of human approval. They must not be used for tuning while intended as a holdout.
 
 `p3_evaluation.py --prepare PRIVATE_NEW_DIR` snapshots the proposals and exports an unfilled human label file plus a review document. The snapshot is a draft registration, **not a retrospective claim of preregistration or human label lock**.
 
@@ -47,6 +48,14 @@ Before formal A/B/C execution:
 5. Only then calculate evidence Recall@5, MRR, supported rescues, applicability precision, safety, citation traceability and effort/latency. Report per-family/category descriptive results; no independence or causal efficiency claims.
 
 The evaluator currently validates three-arm coverage/controls and human lock, then calculates macro **evidence** Recall@5 (not hit rate), reciprocal rank over the supplied ranking, outcome agreement, safety and traceability counts. Zero-relevant tasks are excluded from retrieval denominators. It is an evaluator, **not yet the three-arm execution runner**. Rescue/precision/efficiency analyses require final adjudication/effort records; do not fabricate them from software tests.
+
+## Materializing an issued approval
+
+`freeze_admission.py` requires an out-of-band user admission file, an approved task snapshot, exact article bindings and original source caches. It creates a **new private directory** with scoped review sidecars, frozen source snapshots, an approved library, locked evaluator labels and positive/negative gate checks. It does not generate its own consent, overwrite the pending files or modify the production corpus.
+
+When an operator approves only the registered experiment date, the `valid_from` / `verified_through` pair denotes a **single-day approved case window**, not the statute's commencement or repeal dates. Unknown statutory dates remain null. Historical/future use fails closed. Library membership never bypasses a fresh per-case applicability check, and evaluation references must not be injected into the retrieved ranking.
+
+Current scoped integration checks passed for eight admitted article snapshots; formal A/B/C execution, fact-only payload construction, matched corpus/mask freeze and final exporter integration remain unfinished. See `ADMISSION_INTEGRATION_20260917.md`. No repeated task/source approval is required for these same private frozen records; changes in task content, legal source version or scope require a new record.
 
 ## Data boundary
 
