@@ -173,6 +173,7 @@ def discover_articles(source, text, raw_hash, terms):
         if not matches:
             continue
         packet.update(candidate_id=canonical_hash([source['url'], raw_hash, article, packet['article_sha256']])[:24],
+                      evidence_id=source['source_id']+':'+article+':'+packet['article_sha256'],
                       acquisition_channel='external_curated_discovery', retrieval_score=len(matches), matched_public_terms=matches,
                       required_dependency_review=True, discovery_version=VERSION, regimes=source['regimes'])
         packets.append(packet)
@@ -204,6 +205,29 @@ def admit_candidate(packet, review, context, snapshot=None):
     base = assess_admission(packet, review, context)
     reasons = list(base['reasons']) + packet_integrity(packet, snapshot)
     if isinstance(review, dict):
+        # An experimental approval is not reusable for other projects/dates.
+        # Absence preserves the legacy explicit-scope review contract; an
+        # explicitly provided but malformed scope fails closed.
+        if 'approval_scope' in review:
+            scope = review['approval_scope']
+            if not isinstance(scope, dict):
+                reasons.append('invalid_approval_scope')
+            else:
+                ids = scope.get('allowed_issue_ids')
+                if not isinstance(ids, list) or not ids or not all(isinstance(x, str) and x for x in ids):
+                    reasons.append('invalid_approval_scope_issue_ids')
+                    ids = []
+                for key in ('scope_id', 'task_spec_sha256'):
+                    if not scope.get(key) or context.get(key) != scope[key]:
+                        reasons.append('approval_scope_mismatch_' + key)
+                if not context.get('issue_id') or context['issue_id'] not in ids:
+                    reasons.append('issue_not_in_approved_scope')
+                if 'context_hashes' in scope:
+                    fields = ('jurisdiction','project_type','procurement_regime','as_of')
+                    bindings = scope['context_hashes']
+                    actual = canonical_hash({k:context.get(k) for k in fields})
+                    if not isinstance(bindings,dict) or bindings.get(context.get('issue_id')) != actual:
+                        reasons.append('registered_project_context_mismatch')
         if review.get('candidate_id') != packet.get('candidate_id'):
             reasons.append('review_candidate_binding_mismatch')
         if review.get('procurement_regime') != context.get('procurement_regime') or context.get('procurement_regime') not in packet.get('regimes', []):
