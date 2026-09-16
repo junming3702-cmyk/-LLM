@@ -1,0 +1,38 @@
+{
+  "schema": "operator-curated-source-catalogue.v1",
+  "source_metadata_status": "assistant_proposed_not_human_certified",
+  "sources": [
+    {
+      "source_id": "SAMR-CONSTRUCTION-2019",
+      "url": "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/bgt/art/2023/art_2d49caf1d8b94ec692a02ff3b7cd545d.html",
+      "law_title": "中华人民共和国建筑法",
+      "issuer": "全国人民代表大会常务委员会",
+      "version_label": "2019年第二次修正文本候选",
+      "version_anchors": ["2019年4月23日"],
+      "actual_normative_level": "Level 1",
+      "instrument_type": "law",
+      "geographic_scope": "national",
+      "temporal_status": "pending_human_version_verification",
+      "regimes": ["construction_tender", "construction_contract"],
+      "project_types": ["construction"],
+      "topics": ["施工许可", "资质", "分包", "转包", "施工", "承包", "材料"],
+      "discovery_provenance": "Manual official-site web discovery 2026-09-17; query: 中华人民共和国建筑法 2019 第七条 第八条 第二十六条. Search result is not evidence; exact page must be snapshotted."
+    },
+    {
+      "source_id": "SAC-GOVPROC-2014",
+      "url": "https://www.sac.gov.cn/xxgk/flfg/art/2015/art_7afb2447b2c64d32bb3952c330b6700c.html",
+      "law_title": "中华人民共和国政府采购法",
+      "issuer": "全国人民代表大会常务委员会",
+      "version_label": "2014年修正文本候选",
+      "version_anchors": ["2014年8月31日"],
+      "actual_normative_level": "Level 1",
+      "instrument_type": "law",
+      "geographic_scope": "national",
+      "temporal_status": "pending_human_version_verification",
+      "regimes": ["government_procurement"],
+      "project_types": ["services", "goods"],
+      "topics": ["供应商", "资格", "采购", "联合体", "质疑", "虚假材料"],
+      "discovery_provenance": "Manual official-site web discovery 2026-09-17; query: 中华人民共和国政府采购法 第二十二条 第七十七条 2014. Candidate source/version remains unconfirmed."
+    }
+  ]
+}
