@@ -91,3 +91,23 @@ their combined effect to hierarchy, geography or the task prompt alone.
 All results containing source documents or human assessments stay outside the
 public repository. Only generic model code, synthetic tests and this protocol
 are suitable for version control.
+
+## Consent-scoped online factorial runner
+
+`run_factorial_online.py --help` gives the required explicit input, corpus,
+embedding-cache, environment and output paths. Run `--preflight` first, with
+`--online-authorized-runtime-only` only when the user actually authorised this
+provider and content class. Remove `--preflight` to execute the identical bound
+configuration. Preflight performs no model request; it does not grant consent.
+
+All four arms use fresh generations, the same original corpus and disabled
+external retrieval. Input order rotates arm execution, not outcome selection.
+The first issue's four arms are an included smoke check; a failed smoke stops
+the remaining batch. Primary calls have one transport attempt; any separately
+authorised retry belongs to a new sensitivity run, never overwriting primary
+failures. Raw/gated outcomes, provider usage, request payloads, failures, source
+hashes and helper-code hashes are retained in the private output directory.
+
+The full excluded-source audit is stored locally. Only aggregate counts and
+reason categories enter the LLM input; excluded rows are not legal evidence.
+No expert reference or score file is accepted by the runtime runner.

@@ -23,7 +23,9 @@ LABEL_KEYS = {"gold_label", "gold_labels", "gold_legal_basis_chunk_ids",
               "hidden_materials", "hidden_fact_mapping", "expert_label",
               "expert_scores", "hit_gold", "gold_risk_statement",
               "expected_verdict", "expected_conclusion_type", "reference_conclusion",
-              "hidden_facts", "deleted_facts", "legal_basis_chunk_ids",
+              "hidden_facts", "deleted_facts", "expert_score", "expert_id",
+              "expert_name", "expert_identity", "consensus_label", "consensus_verdict",
+              "expected_label", "legal_basis_chunk_ids",
               "legal_basis_locators", "gold_status", "annotator_id", "annotation_state"}
 SECRET_KEYS = {"api_key", "apikey", "authorization", "password", "access_token",
                "secret_key", "api_secret"}

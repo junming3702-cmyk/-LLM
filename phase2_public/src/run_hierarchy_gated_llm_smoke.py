@@ -877,7 +877,14 @@ def run_case(
     }
     if scope_policy and (scope_policy.geographic_filter or scope_policy.task_boundary):
         runtime_input["scope_boundary_experiment"] = scope_policy.flags()
-        runtime_input["geographic_prefilter_audit"] = scope_audit
+        # Keep the complete pool audit outside the model context: quarantined
+        # source IDs/metadata are not legal evidence and need not consume tokens.
+        runtime_input["geographic_prefilter_audit"] = {
+            "checked_local_candidates": len(scope_audit),
+            "excluded_local_candidates": sum(not x["allowed"] for x in scope_audit),
+            "excluded_reasons": sorted({x["reason"] for x in scope_audit if not x["allowed"]}),
+            "excluded_sources_are_not_legal_evidence": True,
+        }
     effective_final_prompt = final_prompt + FINAL_COMPACT_OUTPUT_CONTRACT if compact_final_output else final_prompt
     preliminary_response, preliminary_gate = run_final_reasoning(
         api_key=api_key,
@@ -1015,6 +1022,8 @@ def run_case(
         },
     }
     result["assessment_status"] = result_status(result)
+    if scope_policy and scope_policy.geographic_filter:
+        result["geographic_prefilter_full_audit"] = scope_audit
     result["run_status"] = result["assessment_status"]["execution_status"]
     result["ready_for_human_delivery"] = result["assessment_status"]["ready_for_human_delivery"]
     return result
