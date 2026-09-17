@@ -111,3 +111,12 @@ hashes and helper-code hashes are retained in the private output directory.
 The full excluded-source audit is stored locally. Only aggregate counts and
 reason categories enter the LLM input; excluded rows are not legal evidence.
 No expert reference or score file is accepted by the runtime runner.
+
+`analyse_factorial.py` is a separate offline process. It refuses an unfinished
+primary batch, checks input/response hashes, joins only the frozen A references,
+and keeps all planned units and execution failures in the denominator. It
+reports raw/gated observations, within-project summaries, paired factor
+contrasts, source-applicability diagnostics and actual provider usage. It does
+not transfer prior expert B ratings or invent exhaustive REAL45 relevance
+judgments for Recall/MRR. `test_analysis.py` tests denominator and contrast
+handling with synthetic records only.
