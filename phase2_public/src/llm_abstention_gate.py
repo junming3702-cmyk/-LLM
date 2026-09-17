@@ -2410,7 +2410,7 @@ def _final_consistency_pass(
         _set_field(finding, "human_review_status", "review_required", actions, path)
 
 
-def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = False, external_scope_bridge: bool = False, source_role_guard: bool = False, external_auto_candidates: bool = False) -> dict:
+def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = False, external_scope_bridge: bool = False, source_role_guard: bool = False, external_auto_candidates: bool = False, nu_boundary: bool = False) -> dict:
     """Return raw-preserving gate result with a safe final response."""
 
     actions: list[str] = []
@@ -2560,6 +2560,11 @@ def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = F
                 _set_field(finding, prose_field, replacement, actions, path)
                 actions.append(f"removed unsupported article references from {path}.{prose_field}: {sorted(unsupported)}")
         usable_evidence = [item for item in evidence if _is_usable_legal_basis(item)]
+        nu_audit = {}
+        if nu_boundary:
+            from nu_boundary_policy import audit_basis
+            nu_audit = audit_basis(runtime_input, finding, usable_evidence)
+            _set_field(finding, "nu_boundary_audit", nu_audit, actions, path)
         bounded_review = _runtime_bounded_review(runtime_input, usable_evidence)
         task_boundary = {}
         if scope_flags.get("version") == "scope-boundary-v1" and scope_flags.get("task_boundary") is True:
@@ -2610,6 +2615,10 @@ def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = F
             runtime_mandatory_missing.get("eligible")
             or bounded_review.get("eligible")
         )
+        # A grounded textual N is not a missing-document risk claim. Leave
+        # legacy behavior unchanged unless the candidate policy is opted in.
+        if nu_audit.get("eligible_no_issue") and not runtime_violations and not bounded_review.get("eligible"):
+            requires_runtime_fact_relation = False
         if requires_runtime_fact_relation and not runtime_fact_relation_supported:
             actions.append(
                 f"forced {path} to information insufficiency because no exact runtime fact-law relation supports the claimed missing material or factual gap"
@@ -2638,6 +2647,14 @@ def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = F
         no_issue_eligible = bool(usable_evidence) and not invalid_coverage_fields and explicit_no_issue and (
             not blocked_level4 or bool(usable_non_level4)
         ) and not runtime_violations and not model_relation_conflict and not bounded_review.get("eligible")
+        if nu_boundary:
+            no_issue_eligible = bool(
+                (no_issue_eligible or nu_audit.get("eligible_no_issue"))
+                and not nu_audit.get("force_insufficient") and not invalid_evidence
+                and not invalid_coverage_fields and not runtime_violations
+                and not model_relation_conflict and not bounded_review.get("eligible")
+                and not _finding_claims_concrete_risk(finding)
+            )
         confirmation = _runtime_claim_confirmation(runtime_input, finding, evidence)
         confirmation_audits.append(confirmation)
         confirmation_validation_available_count += int(confirmation.get("available", False))
@@ -2681,9 +2698,10 @@ def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = F
             or bool(bounded_review.get("missing_decisive_facts"))
             or bool(task_boundary.get("force_insufficient"))
             or bool(binding_audit.get("force_insufficient"))
+            or bool(nu_audit.get("force_insufficient"))
         )
         old_conclusion = finding.get("reasoning_conclusion", "")
-        if no_law_eligible and not missing_fields and not invalid_evidence and not runtime_violations and not usable_evidence and not task_boundary.get("force_insufficient"):
+        if no_law_eligible and not missing_fields and not invalid_evidence and not runtime_violations and not usable_evidence and not task_boundary.get("force_insufficient") and not nu_audit.get("force_insufficient"):
             if old_conclusion and "gate_original_conclusion" not in finding:
                 finding["gate_original_conclusion"] = old_conclusion
             _set_field(
@@ -2723,6 +2741,9 @@ def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = F
             if old_conclusion and "gate_original_conclusion" not in finding:
                 finding["gate_original_conclusion"] = old_conclusion
             reason_parts = []
+            if nu_audit.get("force_insufficient"):
+                reason_parts.append("当前问题的决定性缺口或绑定问题：" + "；".join(
+                    nu_audit.get("blocking_reasons", []) + nu_audit.get("schema_errors", [])))
             if binding_audit.get("force_insufficient"):
                 reason_parts.append("风险结论未通过直接法条与事实差异绑定核验，不能仅凭风险类别或检索风险标记认定潜在违规：" + ",".join(binding_audit["reasons"]))
             if task_boundary.get("force_insufficient"):
@@ -2822,10 +2843,15 @@ def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = F
             _set_field(
                 finding,
                 "reasoning_conclusion",
-                "在当前审查范围内，合同证据明确满足所引用法规要求，未发现有充分证据支持的风险；这不代表整个项目或合同全面合规。",
+                ((nu_audit.get("bounded_conclusion", "") + " 在当前问题与已审证据范围内未发现有证据支持的问题；不证明真实性、实际提交或未来履行，也不代表整个项目全面合规。")
+                 if nu_boundary else "在当前审查范围内，合同证据明确满足所引用法规要求，未发现有充分证据支持的风险；这不代表整个项目或合同全面合规。"),
                 actions,
                 path,
             )
+            if nu_audit.get("follow_up_only"):
+                _set_field(finding, "recommended_human_action",
+                           "当前文本判断之外的人工核查事项：" + "；".join(x["detail"] for x in nu_audit["follow_up_only"])
+                           + "。这些事项不单独推翻本次限定范围的N判断。", actions, path)
         elif evidence_backed_risk:
             if finding.get("severity_basis") == "no_supported_issue":
                 _set_field(
@@ -3051,9 +3077,12 @@ def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = F
     _set_field(response, "review_table", review_table, actions, "root")
     _set_field(response, "table_markdown", _build_table_markdown(review_table), actions, "root")
 
+    nu_schema_blocked = bool(nu_boundary and any(
+        not f.get("nu_boundary_audit", {}).get("schema_valid", False)
+        for f in response["findings"]))
     return {
-        "status": "corrected" if actions else "passed",
-        "blocked": False,
+        "status": "blocked" if nu_schema_blocked else "corrected" if actions else "passed",
+        "blocked": nu_schema_blocked,
         "actions": actions,
         "raw_response": raw_response_preserved,
         "response": response,
