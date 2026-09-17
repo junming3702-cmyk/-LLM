@@ -165,3 +165,28 @@ and keeps the first-run data intact, reporting additional API usage separately.
 denominators, paired improvements AND deteriorations, project summaries, source
 diagnostics and actual usage from the completed offline analysis. It makes no
 network call and modifies neither the model nor the analysis input.
+
+## Independent source-role guard diagnostic
+
+`source_role_policy.py` is an additional opt-in experiment, not a component of
+the frozen geography/task factorial. It enforces existing supplementary/warning
+declarations when metadata incorrectly also marks a row as independent law.
+It preserves text, locators, authority level, evidence IDs and ranking, retaining
+the row for contextual human review. It does not assert that every standard or
+appendix lacks legal/contractual force, and does not independently certify the
+source classifications. Resolving a wrong source classification is a separate
+manifest-verification task.
+
+The per-case retrieval adapter normalizes candidates before triage; the final
+reasoning adapter normalizes the evidence packet before a request; the gate
+rechecks the same denial independently of model-generated metadata. Enable with
+`source_role_guard=True` only in a registered candidate run. All defaults remain
+unchanged. No raw corpus or expert-rated output is rewritten.
+
+`replay_source_roles.py` runs the gate-only ablation on fixed saved responses,
+verifies exact default-gate reproduction and writes new hash-linked private
+results. It never loads reference labels or calls a model. Failed and truncated
+generations remain failed. Select `--arms A_local` for P3: the external arms use
+a different scoped bridge and are deliberately rejected by this replay tool.
+This diagnostic does not measure how a new LLM generation would respond to the
+corrected metadata, nor whether overall accuracy/Recall/MRR increases.

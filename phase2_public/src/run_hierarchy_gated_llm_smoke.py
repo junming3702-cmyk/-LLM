@@ -447,6 +447,7 @@ def run_final_reasoning(
     scope_policy=None,
     risk_binding: bool = False,
     external_scope_bridge: bool = False,
+    source_role_guard: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Run one final-reasoning pass and apply the deterministic gate."""
 
@@ -460,6 +461,11 @@ def run_final_reasoning(
     if risk_binding:
         from risk_binding_policy import PROMPT as RISK_BINDING_PROMPT
         prompt += RISK_BINDING_PROMPT
+    if source_role_guard:
+        from source_role_policy import prepare_runtime as prepare_source_roles
+        prepared = prepare_source_roles(runtime_input)
+        runtime_input.clear()
+        runtime_input.update(prepared)
     response = model_request(
         api_key,
         prompt,
@@ -472,8 +478,8 @@ def run_final_reasoning(
     raw: Any = response.get("parsed")
     if raw is None:
         raw = response.get("selected_text", "")
-    if risk_binding or external_scope_bridge:
-        gated = apply_gate(raw,runtime_input,risk_binding=risk_binding,external_scope_bridge=external_scope_bridge)
+    if risk_binding or external_scope_bridge or source_role_guard:
+        gated = apply_gate(raw,runtime_input,risk_binding=risk_binding,external_scope_bridge=external_scope_bridge,source_role_guard=source_role_guard)
     else:
         gated = apply_gate(raw,runtime_input)
     return response, gated
@@ -493,6 +499,7 @@ def run_case(
     experiment_run_id: str,
     external_fallback: ExternalFallbackStateMachine | None = None,
     scope_policy=None,
+    source_role_guard: bool = False,
 ) -> dict[str, Any]:
     query = label["document_excerpt"]
     retrieval_queries = [
@@ -508,6 +515,11 @@ def run_case(
         from scope_boundary_policy import ContextFilteredRetriever
         retriever = ContextFilteredRetriever(retriever, context, scope_policy)
         scope_audit = retriever.audit
+    role_audit = []
+    if source_role_guard:
+        from source_role_policy import SourceRoleGuardRetriever
+        retriever = SourceRoleGuardRetriever(retriever)
+        role_audit = retriever.audit
     if scope_policy and scope_policy.task_boundary:
         from scope_boundary_policy import task_contract, TASK_PROMPT
         review_task = task_contract({"project_context": context,
@@ -901,6 +913,7 @@ def run_case(
         runtime_input=runtime_input,
         max_tokens=final_max_tokens,
         scope_policy=scope_policy,
+        **({'source_role_guard': True} if source_role_guard else {}),
     )
     recheck_eligible = eligible_for_one_shot_external_recheck(preliminary_gate)
     recheck_attempted = False
@@ -928,6 +941,9 @@ def run_case(
             force_single_discovery_recheck=True,
         )
         external_candidates = list(external_audit.get("candidates", []))
+        if source_role_guard:
+            from source_role_policy import normalize_source
+            external_candidates = [normalize_source(row) for row in external_candidates]
         admissible_external_candidates = [
             row for row in external_candidates if is_usable_legal_basis(row)
         ]
@@ -980,6 +996,7 @@ def run_case(
                 runtime_input=runtime_input,
                 max_tokens=final_max_tokens,
                 scope_policy=scope_policy,
+                **({'source_role_guard': True} if source_role_guard else {}),
             )
         else:
             # Refresh the deterministic audit against the post-recheck runtime
@@ -988,7 +1005,8 @@ def run_case(
             if scope_policy and (scope_policy.geographic_filter or scope_policy.task_boundary):
                 from scope_boundary_policy import prepare_runtime
                 runtime_input = prepare_runtime(runtime_input, scope_policy)
-            gate_result = apply_gate(preliminary_gated_response, runtime_input)
+            gate_result = apply_gate(preliminary_gated_response, runtime_input,
+                **({'source_role_guard': True} if source_role_guard else {}))
 
     result = {
         "issue_id": label["issue_id"],
@@ -1031,6 +1049,8 @@ def run_case(
         },
     }
     result["assessment_status"] = result_status(result)
+    if source_role_guard:
+        result['source_role_retrieval_audit'] = role_audit
     if scope_policy and scope_policy.geographic_filter:
         result["geographic_prefilter_full_audit"] = scope_audit
     result["run_status"] = result["assessment_status"]["execution_status"]

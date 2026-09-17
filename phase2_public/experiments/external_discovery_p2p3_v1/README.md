@@ -17,7 +17,7 @@ No original expert outputs, prompts, legal corpus or human responses are changed
 - Default admission is zero. Human sidecars bind candidate ID, source/quote hashes, title/version, time window, jurisdiction, project type, procurement regime, material facts and review of conditions/exceptions/cross-references. Human admission applies only to that exact context/window.
 - Optional experiment-scoped approval additionally binds scope ID, task-spec hash, registered issue IDs and their jurisdiction/type/regime/date hashes. It cannot be reused under a different case ID or by changing that case's registered project context. Full article `evidence_id` is deterministic from source ID, article and quote hash; it is generated for all candidates, without using labels.
 - Discovery does not turn no hit, HTTP error, empty page, missing facts or pending confirmation into `valid`. It preserves `insufficient_information_needs_human_confirm` until a separately gated reasoning run has a supported basis.
-- `citation_gate` blocks unadmitted/unknown citations and unsupported conclusions. It is a narrow boundary check, **not the full production reasoning gate or an Excel export integration**. Production/hybrid runner integration and A/B/C execution adapters remain pending P3 reference lock and subsequent verification.
+- `citation_gate` blocks unadmitted/unknown citations and unsupported conclusions. It is a narrow boundary check, **not the full production reasoning gate or an Excel export integration**. The later isolated controlled runner additionally invokes the full reasoning gate; it does not replace the expert-rated production version.
 
 ## Run (repository root; standard-library Python)
 

@@ -2402,10 +2402,15 @@ def _final_consistency_pass(
         _set_field(finding, "human_review_status", "review_required", actions, path)
 
 
-def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = False, external_scope_bridge: bool = False) -> dict:
+def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = False, external_scope_bridge: bool = False, source_role_guard: bool = False) -> dict:
     """Return raw-preserving gate result with a safe final response."""
 
     actions: list[str] = []
+    if source_role_guard:
+        from source_role_policy import prepare_runtime as prepare_source_roles
+        runtime_input = prepare_source_roles(runtime_input)
+        for row in runtime_input['source_role_policy_audit']['restricted']:
+            actions.append(f"source role guard retained {row['chunk_id']} as contextual-only, not independent law")
     scope_flags = runtime_input.get("scope_boundary_experiment") or {}
     if scope_flags.get("version") == "scope-boundary-v1" and scope_flags.get("geographic_filter") is True:
         # Defense in depth against bypassing retrieval admission. Runtime-only
@@ -2432,6 +2437,8 @@ def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = F
 
     response = deepcopy(raw_response)
     raw_response_preserved = deepcopy(raw_response)
+    if source_role_guard:
+        _set_field(response, 'source_role_policy_audit', deepcopy(runtime_input['source_role_policy_audit']), actions, 'root')
     if scope_flags.get("version") == "scope-boundary-v1" and (scope_flags.get("geographic_filter") or scope_flags.get("task_boundary")):
         _set_field(response, "scope_boundary_experiment", deepcopy(scope_flags), actions, "root")
     _set_field(response, "run_id", runtime_input.get("run_id", ""), actions, "root")
