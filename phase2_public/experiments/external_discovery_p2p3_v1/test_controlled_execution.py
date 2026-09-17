@@ -95,6 +95,37 @@ class ControlledExecutionTests(unittest.TestCase):
         row,_=bridge_candidate(self.packet,self.review,{**CONTEXT,'as_of':'2018-01-01'},(RAW,self.meta))
         self.assertIsNone(row)
 
+    def test_bridge_survives_full_citation_canonicalizer_only_when_opted_in(self):
+        from llm_abstention_gate import _canonicalize_evidence
+        ctx={**CONTEXT,'issue_id':'TEST'}
+        row,_=bridge_candidate(self.packet,self.review,ctx,(RAW,{**self.meta,'fetched_at':'2026-09-17T00:00:00Z'}))
+        runtime={'issue_id':'TEST','project_context':{
+            'project_location':{'province':'四川省','human_confirmation':'confirmed'},
+            'project_type_code':'construction','procurement_regime':'construction_tender',
+            'review_as_of':'2026-09-17'},'retrieved_legal_evidence':[row]}
+        finding={'legal_evidence':[{'chunk_id':row['chunk_id']}]}
+        legacy=_canonicalize_evidence(copy.deepcopy(finding),runtime,[])
+        self.assertTrue(legacy[1]);self.assertEqual(legacy[0],[])
+        active=_canonicalize_evidence(copy.deepcopy(finding),runtime,[],external_scope_bridge=True)
+        self.assertFalse(active[1]);self.assertEqual(len(active[0]),1)
+        self.assertFalse(active[0][0].get('effective_date'))
+
+    def test_scoped_date_cannot_escape_context_or_replace_real_source(self):
+        from external_scope_bridge_policy import scoped_temporal_admission
+        ctx={**CONTEXT,'issue_id':'TEST'}
+        row,_=bridge_candidate(self.packet,self.review,ctx,(RAW,self.meta))
+        runtime={'issue_id':'TEST','project_context':{
+            'project_location':{'province':'四川省','human_confirmation':'confirmed'},
+            'project_type_code':'construction','procurement_regime':'construction_tender','review_as_of':'2026-09-17'}}
+        self.assertTrue(scoped_temporal_admission(row,runtime))
+        for field,value in [('review_as_of','2018-01-01'),('project_type_code','services'),('procurement_regime','private_purchase')]:
+            changed=copy.deepcopy(runtime);changed['project_context'][field]=value
+            self.assertFalse(scoped_temporal_admission(row,changed))
+        self.assertFalse(scoped_temporal_admission(row,{**runtime,'issue_id':'OUTSIDE'}))
+        self.assertFalse(scoped_temporal_admission({**row,'legal_quote':'modified'},runtime))
+        changed=copy.deepcopy(row);changed['registered_source_scope_validation']['snapshot_integrity_passed']=False
+        self.assertFalse(scoped_temporal_admission(changed,runtime))
+
     def test_legacy_no_fabricated_article(self):
         r=replay_fixed_access(['资格'],CONTEXT,[SOURCE],self.store,[{'base_url':SOURCE['url']}],self.control)
         self.assertFalse(r['admitted_evidence'])

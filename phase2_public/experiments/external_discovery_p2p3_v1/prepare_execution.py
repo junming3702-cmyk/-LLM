@@ -81,13 +81,14 @@ def compile_inputs(spec, approval):
             'human_confirmation':'confirmed' if ctx.get('jurisdiction') else 'not_provided',
             'source':'user-approved synthetic task context; not real-project verification'}
         runtime_ctx={'project_location':location,
+            'project_type_code':ctx.get('project_type'),
             'project_type':{'construction':'建筑施工工程（合成）','services':'服务采购（合成）','goods':'货物采购（合成）'}.get(ctx.get('project_type'),'unknown'),
             'procurement_regime':ctx.get('procurement_regime'),'review_as_of':ctx.get('as_of'),
             'document_stage':task_stage(uid),
             'review_question':QUESTIONS.get(uid,'仅审查所示文本与可用法规依据之间的关系。'),
             'evidence_boundary':'合成材料；仅限明确提供的事实，不代表完整项目文件。'}
         row={'issue_id':uid,'project_id':'P3-SYNTHETIC','document_id':'SYN-'+uid,
-            'document_location':'approved synthetic task '+uid+' / fact-only transformation v2',
+            'document_location':'approved synthetic task '+uid+' / fact-only transformation v3',
             'document_excerpt':FACTS[uid],'runtime_project_context':runtime_ctx,
             'retrieval_queries':task['terms'],'external_legal_query_terms':task['terms']}
         validate_runtime(row)
@@ -98,7 +99,7 @@ def compile_inputs(spec, approval):
             'engineering_only':bool(task.get('fault')),
             'source_class_hint':'supplement_only' if task.get('category')=='supplement_only' else None})
         transforms.append({'issue_id':uid,'original_description':task['text'],'fact_only_text':FACTS[uid],
-            'task_stage':runtime_ctx['document_stage'],'input_transform_version':'v2-explicit-task-metadata',
+            'task_stage':runtime_ctx['document_stage'],'input_transform_version':'v3-explicit-type-and-task-metadata',
             'runtime_row_sha256':digest(row),'raw_task_description_sha256':digest(task['text']),
             'synthetic_protocol_case':bool(task.get('fault')),
             'new_human_verification_claimed':False})

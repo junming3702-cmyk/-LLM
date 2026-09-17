@@ -239,7 +239,15 @@ def task_contract(runtime):
         types.append("document_completeness")
     if re.search(r"实际履行|行为核验|performance_verification", stage):
         types.append("actual_conduct")
-    task = types[0] if len(types) == 1 else "unknown"
+    # An explicit leading task code owns the task classification. Narrative
+    # boundaries such as "不证明实际履行" must not create a second, affirmative
+    # actual-conduct task. Conflicting *explicit codes* still fail closed.
+    codes = {'clause_pre_review':'clause_design','document_response':'document_response',
+             'document_completeness':'document_completeness','performance_verification':'actual_conduct'}
+    leading = re.match(r'^(clause_pre_review|document_response|document_completeness|performance_verification)(?=[:：\s]|$)',stage)
+    explicit_codes = set(re.findall(r'\b(?:clause_pre_review|document_response|document_completeness|performance_verification)\b',stage))
+    task = (codes[leading[1]] if leading and len(explicit_codes)==1 else
+            'unknown' if leading else types[0] if len(types)==1 else 'unknown')
     question = str(ctx.get("review_question") or "")
     if task == "clause_design" and re.search(r"是否实际|实际开标|实际履行|是否已提交|是否已送达", question):
         task = "unknown"  # Explicit question/stage conflict cannot relax a gap.

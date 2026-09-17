@@ -21,6 +21,17 @@ class FactInputTests(unittest.TestCase):
         self.assertIsNone(by['P3-17']['runtime_project_context']['project_location']['province'])
         self.assertEqual(by['P3-18']['runtime_project_context']['project_type'],'unknown')
         self.assertIsNone(by['P3-20']['runtime_project_context']['review_as_of'])
+    def test_explicit_clause_task_not_confused_by_negative_performance_boundary(self):
+        from scope_boundary_policy import task_contract
+        spec=self.spec();rows,*_=compile_inputs(spec,self.approval(spec))
+        by={r['issue_id']:r for r in rows}
+        self.assertEqual(task_contract({'project_context':by['P3-01']['runtime_project_context']})['task_type'],'clause_design')
+        self.assertEqual(by['P3-01']['runtime_project_context']['project_type_code'],'construction')
+        self.assertIsNone(by['P3-18']['runtime_project_context']['project_type_code'])
+        ctx={**by['P3-01']['runtime_project_context'],'review_question':'是否实际开标？'}
+        self.assertEqual(task_contract({'project_context':ctx})['task_type'],'unknown')
+        ctx={**by['P3-01']['runtime_project_context'],'document_stage':'clause_pre_review：同时 document_response'}
+        self.assertEqual(task_contract({'project_context':ctx})['task_type'],'unknown')
     def test_scope_change_rejected(self):
         spec=self.spec();approval=self.approval(spec);spec['default_context']['jurisdiction']='altered'
         with self.assertRaises(ValueError):compile_inputs(spec,approval)

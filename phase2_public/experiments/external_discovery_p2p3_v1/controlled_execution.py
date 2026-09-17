@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]/'src'))
 from experiment_integrity import validate_runtime, write_new_json, file_digest
+from external_scope_bridge_policy import VERSION as BRIDGE_VERSION,hash_context
 from discovery import (INSUFFICIENT, SnapshotStore, admit_candidate, canonical_hash,
     digest, discover_articles, html_text, load_catalogue, recheck, route_sources,
     safe_url)
@@ -171,6 +172,8 @@ def bridge_candidate(packet, review, context, snapshot):
         'evidence_id':packet['evidence_id'],'law':packet['law_title'],'article':packet['article'],
         'legal_quote':packet['legal_quote'],'source_locator':locator,
         'source_url':packet['source_url'],'source_id':packet['source_id'],
+        'issuer':packet['issuer'],'source_title':packet['law_title'],
+        'retrieved_at':snapshot[1].get('fetched_at'),
         'source_version':packet['version_label'],'source_hash':packet['raw_snapshot_sha256'],
         'article_sha256':packet['article_sha256'],'normalized_snapshot_sha256':packet['normalized_snapshot_sha256'],
         'source_locator_coordinates':deepcopy(loc),
@@ -188,6 +191,11 @@ def bridge_candidate(packet, review, context, snapshot):
         'scope_verification_day':context.get('as_of'),
         'statutory_effective_date':None,'statutory_expiry_date':None,
         'temporal_boundary':'Only registered case-day source approval; no broader validity certification.'}
+    row['registered_source_scope_validation']={'producer':BRIDGE_VERSION,'issue_id':context.get('issue_id'),
+        'context_sha256':hash_context(context),'valid_from':review['valid_from'],
+        'verified_through':review['verified_through'],'source_review_sha256':canonical_hash(review),
+        'source_hash':row['source_hash'],'article_sha256':row['article_sha256'],
+        'sidecar_admission_passed':True,'snapshot_integrity_passed':True}
     row['project_type_scope'] = list(review['allowed_project_types'])
     validate_runtime(row)
     return row,{'admitted':True,'reasons':[],'source_review_sha256':canonical_hash(review)}

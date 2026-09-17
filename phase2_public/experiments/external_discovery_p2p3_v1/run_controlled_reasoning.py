@@ -141,6 +141,19 @@ def main():
     prompt=(PACKAGE/'prompts/system_prompt_final.md').read_text(encoding='utf-8')+EXECUTION_PROMPT
     # Hash every accessed external source, including an explicitly missing one.
     snapshots={s['url']:(store.get(s['url'])[1]['raw_sha256'] if store.get(s['url']) else None) for s in catalogue}
+    # Integration preflight exercises the *final* canonicalizer, not merely
+    # the discovery admission predicate; it does not generate any verdict.
+    from llm_abstention_gate import _canonicalize_evidence
+    bridge_preflight=[]
+    for row in rows:
+        uid=row['issue_id'];context=contexts[uid]
+        found=replay_discovery(row['external_legal_query_terms'],context,catalogue,store,reviews,ctl[uid])
+        evidence,checks=bridge_result(found,reviews,context,store)
+        runtime={'issue_id':uid,'project_context':row['runtime_project_context'],'retrieved_legal_evidence':evidence}
+        finding={'legal_evidence':[{'chunk_id':e['chunk_id']} for e in evidence]}
+        retained,invalid,_=_canonicalize_evidence(finding,runtime,[],external_scope_bridge=True)
+        if invalid or len(retained)!=len(evidence):raise ValueError('bridge_final_canonicalizer_preflight_failed')
+        bridge_preflight.append({'issue_id':uid,'admitted_count':len(evidence),'all_citations_survived':True})
     binding={'run_id':a.run_id,'corpus_mode':a.corpus_mode,'input_sha256':file_digest(a.prepared/'runtime_rows.private.json'),
         'context_sha256':file_digest(a.prepared/'context_bindings.private.json'),
         'corpus_sha256':file_digest(a.corpus),'candidate_code':code_inventory(PACKAGE),
@@ -149,9 +162,11 @@ def main():
         'source_snapshot_hashes':snapshots,'legacy_manifest_sha256':file_digest(PACKAGE/'data/law/external_retrieval_source_manifest_v1.csv'),
         'prompt_sha256':digest(prompt),'task_overlay_sha256':digest(TASK_PROMPT),
         'candidate_controls_sha256':digest(ctl),'withholding_policy':{k:sorted(v) for k,v in WITHHELD.items()} if a.corpus_mode=='controlled_gap' else {},
+        'bridge_preflight':bridge_preflight,
         'requested_model':'deepseek-v4-flash','temperature':0.1,'triage_max_tokens':2048,'final_max_tokens':16384,
         'final_thinking':'enabled','reasoning_effort':'low','top_k_per_level_phase':5,
         'scope_policy':'geo_task','risk_binding_candidate_enabled':False,'arms':list(ARMS),
+        'registered_case_day_external_bridge_enabled':True,
         'legal_tasks':len(rows),'engineering_tasks_excluded':8,'shared_local_preliminary':True,
         'max_requests':10*len(rows),'max_wall_seconds':7200,'max_parallel_units':3,
         'max_single_request_chars':220000,'max_total_request_chars':30000000,'max_reserved_output_tokens':2500000,
@@ -229,7 +244,7 @@ def main():
                         try:
                             response,gate=runner.run_final_reasoning(api_key=key,
                                 prompt=prompt+runner.FINAL_COMPACT_OUTPUT_CONTRACT,
-                                runtime_input=runtime,max_tokens=16384,scope_policy=policy)
+                                runtime_input=runtime,max_tokens=16384,scope_policy=policy,external_scope_bridge=True)
                             result.update(final_llm_response=response,post_llm_gate=gate,new_final_generation=True)
                         except Exception as exc:result['execution_error']=type(exc).__name__
                     result['p3_one_shot_audit']={'attempted':True,'rounds':1,'new_final_generation':bool(evidence),

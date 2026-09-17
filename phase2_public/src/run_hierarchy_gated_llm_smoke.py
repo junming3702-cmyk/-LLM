@@ -446,6 +446,7 @@ def run_final_reasoning(
     max_tokens: int,
     scope_policy=None,
     risk_binding: bool = False,
+    external_scope_bridge: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Run one final-reasoning pass and apply the deterministic gate."""
 
@@ -471,8 +472,10 @@ def run_final_reasoning(
     raw: Any = response.get("parsed")
     if raw is None:
         raw = response.get("selected_text", "")
-    gated = (apply_gate(raw, runtime_input, risk_binding=True) if risk_binding
-             else apply_gate(raw, runtime_input))
+    if risk_binding or external_scope_bridge:
+        gated = apply_gate(raw,runtime_input,risk_binding=risk_binding,external_scope_bridge=external_scope_bridge)
+    else:
+        gated = apply_gate(raw,runtime_input)
     return response, gated
 
 

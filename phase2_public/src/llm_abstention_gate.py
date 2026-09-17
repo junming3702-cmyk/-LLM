@@ -894,7 +894,7 @@ def _minimal_response(runtime_input: dict, reason: str) -> dict:
     }
 
 
-def _canonicalize_evidence(finding: dict, runtime_input: dict, actions: list[str]) -> tuple[list[dict], bool, bool]:
+def _canonicalize_evidence(finding: dict, runtime_input: dict, actions: list[str], *, external_scope_bridge: bool = False) -> tuple[list[dict], bool, bool]:
     supplied: dict[str, dict] = {}
     duplicate_chunk_ids: set[str] = set()
     runtime_rows = runtime_input.get("retrieved_legal_evidence", [])
@@ -993,6 +993,11 @@ def _canonicalize_evidence(finding: dict, runtime_input: dict, actions: list[str
             "human_confirmation_status",
             "external_candidate_status",
             "provider_id",
+            "registered_source_scope_validation",
+            "statutory_effective_date",
+            "statutory_expiry_date",
+            "scope_verification_day",
+            "temporal_boundary",
         )
         external_source = _is_external_source(source)
         external_pending = external_source and _external_evidence_is_pending(source)
@@ -1114,12 +1119,16 @@ def _canonicalize_evidence(finding: dict, runtime_input: dict, actions: list[str
         if external_source:
             external_url = source.get("source_url") or source.get("official_source_url")
             external_hash = source.get("content_sha256") or source.get("source_hash")
+            scoped_date_supported = False
+            if external_scope_bridge:
+                from external_scope_bridge_policy import scoped_temporal_admission
+                scoped_date_supported = scoped_temporal_admission(source,runtime_input)
             required_external_fields = (
                 external_url,
                 source.get("issuer"),
                 source.get("source_title"),
                 source.get("source_version"),
-                source.get("effective_date"),
+                source.get("effective_date") or ("registered_case_day_only_NOT_statutory_date" if scoped_date_supported else None),
                 source.get("retrieved_at"),
                 external_hash,
                 source.get("article"),
@@ -2393,7 +2402,7 @@ def _final_consistency_pass(
         _set_field(finding, "human_review_status", "review_required", actions, path)
 
 
-def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = False) -> dict:
+def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = False, external_scope_bridge: bool = False) -> dict:
     """Return raw-preserving gate result with a safe final response."""
 
     actions: list[str] = []
@@ -2525,7 +2534,7 @@ def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = F
             or coverage.get(field) not in VALID_COVERAGE_STATES
         ]
 
-        evidence, invalid_evidence, only_supplementary = _canonicalize_evidence(finding, runtime_input, actions)
+        evidence, invalid_evidence, only_supplementary = _canonicalize_evidence(finding, runtime_input, actions, external_scope_bridge=external_scope_bridge)
         for prose_field in ("reasoning_conclusion", "recommended_human_action"):
             unsupported = _unsupported_article_refs(finding.get(prose_field), evidence)
             if unsupported:
