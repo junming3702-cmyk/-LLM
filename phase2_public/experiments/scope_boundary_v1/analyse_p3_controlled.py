@@ -7,6 +7,7 @@ from collections import Counter,defaultdict
 from pathlib import Path
 import argparse
 import json
+import re
 import statistics
 import sys
 
@@ -44,7 +45,7 @@ def summarize_rank(rows):
 
 
 def request_audit(run,binding):
-    totals=Counter(); models=Counter(); status=Counter();times=[]; failures=[];n=0
+    totals=Counter(); models=Counter(); status=Counter();times=[]; failures=[];n=0;usage_missing=0
     for path in sorted((run/'audit').glob('*/request_cache/*.json')):
         if path.name.endswith('.started.json'):continue
         item=read(path);obs=item['observation'];body=obs['request_body']
@@ -68,6 +69,7 @@ def request_audit(run,binding):
                         for v in value:scan(v)
                 scan(runtime)
         payload=obs.get('payload') or {};usage=payload.get('usage') or {}
+        usage_missing += not isinstance(usage.get('total_tokens'),(int,float))
         for k in ('total_tokens','prompt_tokens','completion_tokens','prompt_cache_hit_tokens','prompt_cache_miss_tokens'):
             if isinstance(usage.get(k),(int,float)):totals[k]+=usage[k]
         models[str(payload.get('model'))]+=1
@@ -79,6 +81,7 @@ def request_audit(run,binding):
     completion=read(run/'completion.json')
     if n!=completion['budgets']['requests']:raise ValueError('request_count_mismatch')
     return {'calls':n,'usage':dict(totals),'returned_model_names':dict(models),
+        'calls_without_reported_total_tokens':usage_missing,
         'finish_reasons':dict(status),'request_median_seconds':statistics.median(times) if times else None,
         'request_total_seconds':sum(times),'wall_seconds':completion['elapsed_seconds'],
         'failures':failures,'runtime_leak_scan_passed':True,'automatic_retries':0}
@@ -93,6 +96,8 @@ def analyze(run,frozen):
     if binding['task_spec_sha256']!=labels['task_spec_sha256']:raise ValueError('runtime_reference_spec_mismatch')
     tasks={t['id']:t for t in spec['tasks'] if not t.get('fault')}
     refs=labels['cases']
+    library=read(frozen/'approved_library.private.json')
+    reference_articles={p['evidence_id']:(p['law_title'],p['article']) for p in library}
     if len(tasks)!=binding['legal_tasks']:raise ValueError('task_coverage_mismatch')
     details=[];aggregates={};pairs=[];all_external=[]
     for uid,t in tasks.items():
@@ -112,11 +117,19 @@ def analyze(run,frozen):
             supplied={e['chunk_id']:e for e in result.get('runtime_input',{}).get('retrieved_legal_evidence',[])}
             unknown=[e.get('chunk_id') for e in citations if e.get('chunk_id') not in supplied]
             cited_external=[e.get('chunk_id') for e in citations if str(e.get('chunk_id','')).startswith('external:')]
+            expected_articles={reference_articles[i] for i in ref['relevant_evidence_ids']}
+            def law_name(value):return re.sub(r'\d{8}$','',re.sub(r'[《》\s]','',str(value or '')))
+            cited_articles={(law_name(e.get('law')),str(e.get('article') or '')) for e in citations}
+            covered=expected_articles.intersection(cited_articles)
             one={'status':obs['status'],'raw_verdict':raw['verdict'],'verdict':obs['verdict'],
                 'conclusion':f.get('conclusion_type') if obs['status']=='completed' else None,
                 'semantic_agreement':obs['status']=='completed' and obs['verdict']==record['reference_verdict'],
                 'raw_semantic_agreement':raw['status']=='completed' and raw['verdict']==record['reference_verdict'],
                 'exact_conclusion_agreement':obs['status']=='completed' and f.get('conclusion_type')==ref['conclusion'],
+                'reference_article_title_match_count':len(covered),
+                'reference_article_title_denominator':len(expected_articles),
+                'decision_without_recorded_reference_article':obs['status']=='completed' and obs['verdict'] in ('R','N') and bool(expected_articles) and not covered,
+                'reference_article_match_boundary':'title/article identity diagnostic only; not semantic entailment or version certification',
                 'unknown_citations':unknown,'citation_count':len(citations),'external_citations':cited_external,
                 'external_recheck_attempted':bool(result.get('p3_one_shot_audit',{}).get('attempted')),
                 'new_final_generation':bool(result.get('new_final_generation')),
@@ -150,9 +163,16 @@ def analyze(run,frozen):
             'U_to_decision':sum(d['reference_verdict']=='U' and d['arms'][arm]['verdict'] in ('N','R') for d in details),
             'R_to_N':sum(d['reference_verdict']=='R' and d['arms'][arm]['verdict']=='N' for d in details),
             'unknown_citation_count':sum(len(r['unknown_citations']) for r in rows),
+            'decisions_without_recorded_reference_article':sum(r['decision_without_recorded_reference_article'] for r in rows),
             'actual_new_final_generations':sum(r['new_final_generation'] for r in rows),
             'per_family':{family:{'n':len(ds),'correct':sum(d['arms'][arm]['semantic_agreement'] for d in ds)} for family,ds in grouped.items()}}
+    common_control_keys=('input_sha256','context_sha256','corpus_sha256','candidate_code','experiment_code',
+        'task_spec_sha256','source_review_sha256','source_snapshot_hashes','legacy_manifest_sha256',
+        'prompt_sha256','task_overlay_sha256','candidate_controls_sha256','requested_model','temperature',
+        'triage_max_tokens','final_max_tokens','final_thinking','reasoning_effort','top_k_per_level_phase',
+        'scope_policy','risk_binding_candidate_enabled','registered_case_day_external_bridge_enabled')
     return {'run_manifest_sha256':file_digest(run/'run_manifest.json'),'corpus_mode':binding['corpus_mode'],
+        'matched_controls':{k:binding.get(k) for k in common_control_keys},
         'reference_sha256':file_digest(frozen/'human_labels.locked.private.json'),
         'reference_verdict_counts':dict(Counter(d['reference_verdict'] for d in details)),
         'aggregates':aggregates,'details':details,'paired_A_C':pairs,

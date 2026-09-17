@@ -8,6 +8,8 @@ def pct(value):return '—' if value is None else f'{value:.1%}'
 
 
 def report(analyses):
+    if len(analyses)>1 and any(a['matched_controls']!=analyses[0]['matched_controls'] for a in analyses[1:]):
+        raise ValueError('unmatched_decision_source_or_runtime_controls')
     lines=['# P3 外部检索闭环：隔离对照结果','','## Material Passport','',
         '- ARS experiment-agent；validate；Verification Status: ANALYZED。',
         '- 公开法规与用户批准的合成任务；不是新专家盲评，也不使用真实合同。',
@@ -21,10 +23,10 @@ def report(analyses):
     for a in analyses:
         label=a['corpus_mode']; agg=a['aggregates'];req=a['request_audit']
         lines += [f'## {label} 条件','',f"参考分布：{a['reference_verdict_counts']}。",'',
-            '|条件|语义一致/22|原始LLM一致/22|完成数|N→R误报|U被升级N/R|新增final调用|',
-            '|---|---:|---:|---:|---:|---:|---:|']
+            '|条件|语义一致/22|原始LLM一致/22|完成数|N→R误报|U被升级N/R|未引用登记参考条文的决定|新增final调用|',
+            '|---|---:|---:|---:|---:|---:|---:|---:|']
         for arm,d in agg.items():
-            lines.append(f"|{arm}|{d['semantic_agreement_count']}/22|{d['raw_semantic_agreement_count']}/22|{d['status_counts'].get('completed',0)}|{d['N_to_R']}|{d['U_to_decision']}|{d['actual_new_final_generations']}|")
+            lines.append(f"|{arm}|{d['semantic_agreement_count']}/22|{d['raw_semantic_agreement_count']}/22|{d['status_counts'].get('completed',0)}|{d['N_to_R']}|{d['U_to_decision']}|{d['decisions_without_recorded_reference_article']}|{d['actual_new_final_generations']}|")
         pairs=a['paired_A_C']; improved=[r['issue_id'] for r in pairs if r['change']=='improved']; worse=[r['issue_id'] for r in pairs if r['change']=='worsened']
         lines += ['',f"A→C参考一致性：改善{len(improved)}条（{', '.join(improved) or '无'}）；下降{len(worse)}条（{', '.join(worse) or '无'}）。",'',
             '### 外部检索阶段指标（条件性，不能冒充全模型Recall/MRR）','',
@@ -38,6 +40,7 @@ def report(analyses):
             '未触发复检的任务不在这项条件性检索指标分母；原本没有相关条文的任务也不当作100%召回。当前缺少经过核验的本地chunk—外部整条法条共同相关性映射，因此不报告端到端统一Recall/MRR。','',
             '### 调用与成本边界','',
             f"- 实际DeepSeek请求：{req['calls']}；报告token总量：{req['usage'].get('total_tokens',0):,}。",
+            f"- 缺少总token报告的请求：{req.get('calls_without_reported_total_tokens',0)}；未知用量不能等同于免费或零消耗。",
             f"- 实验墙钟：{req['wall_seconds']:.1f}秒；逐请求耗时中位数：{req['request_median_seconds']:.3f}秒（含triage和final混合，不能当作单条审查耗时）。",
             f"- 返回模型名称：`{json.dumps(req['returned_model_names'],ensure_ascii=False)}`；请求名称为deepseek-v4-flash，未独立认证服务端alias。",
             '- 外部法规使用冻结快照，实际网站HTTP请求为0；不证明网站当前在线或法条当前效力。',
@@ -47,7 +50,9 @@ def report(analyses):
         for d in a['details']:
             states=[(v['verdict'] or v['status']) for v in d['arms'].values()]
             lines.append('|'+ '|'.join([d['issue_id'],d['reference_verdict'],*states,str(d['arms']['C_article_discovery']['new_final_generation'])])+'|')
-        lines += ['',f"分析来源run-manifest SHA256：`{a['run_manifest_sha256']}`。",'']
+        missing=[d['issue_id'] for d in a['details'] if d['arms']['C_article_discovery']['decision_without_recorded_reference_article']]
+        lines += ['',f"C组R/N但未引用登记参考条文的单元：{', '.join(missing) or '无'}。这可能是其他有效依据，也可能是适用错误；未人工核对前不得把标签一致当作证据链已正确。",'',
+            f"分析来源run-manifest SHA256：`{a['run_manifest_sha256']}`。",'']
     lines += ['## 必须保留的限制与11项方法风险检查','',
         '|检查|本轮处理|','|---|---|',
         '|辛普森悖论|分别保留语料条件、family与逐条结果，不只看总平均。|',
