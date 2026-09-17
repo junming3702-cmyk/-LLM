@@ -1,0 +1,14 @@
+{
+  "schema": "candidate-extraction-boundaries.v1",
+  "sources": {
+    "NDRC-EVALUATION-2013": {"footer_prefix":"国家发展和改革委员会发布","scope_articles":[2,58,59,60],"version_notes":["2013 amendment effective 2013-05-01; whole current validity not certified"]},
+    "MOF-QUALITY-RETENTION-2017": {"footer_prefix":"附件下载:","scope_articles":[1,2,6,13,15],"version_notes":["Article 15 states 2017-07-01 and repeal of the 2016 notice; document is not a departmental regulation"]},
+    "NDRC-TRANSACTION-GUARANTEE-2023": {"footer_prefix":"各地要充分认识","heading_type":"numbered_items","expected_item_count":7,"scope_articles":[1,2,5,6],"version_notes":["Signed 2023-01-06, web publication 2023-02-06; no inferred universal commencement date"]},
+    "COST-CONSULTING-2020-REPUBLICATION": {"footer_prefix":"打印","scope_articles":[2,3,4,20,22,41],"version_notes":["Historical 2020 text; company-qualification provisions require the 2021 cancellation cross-check; no wholesale current admission"]},
+    "SAMR-GOVPROC-2014": {"allow_end_of_snapshot":true,"scope_articles":[2,4,84,85,86,88],"version_notes":["2014-amended text; 2026 draft is not enacted law; no inference that a service project is government procurement"]},
+    "MOHURD-COST-QUALIFICATION-2021-26-FJ-COPY": {"footer_prefix":"住房和城乡建设部办公厅","scope_articles":[1,4],"version_notes":["Only physical pages 4-6; central instrument not the provincial cover notice; company and individual qualifications differ"]},
+    "CCGP-GOVPROC-IMPLEMENTATION-2015": {"footer_prefix":"主办单位：","scope_articles":[2,5,7,79],"version_notes":["Body states 2015-03-01; page metadata 2015-01-30 conflicts and is not the effective date"]},
+    "SPC-CONSTRUCTION-2020-25": {"footer_prefix":"责任编辑：","scope_articles":[1,2,43,45],"version_notes":["Judicial interpretation is a separate instrument type; 2026 temporal/court-scope cross-check remains required"]},
+    "SPC-CONSTRUCTION-2026-12": {"footer_prefix":"相关链接：","scope_articles":[1,6,23],"version_notes":["Article 23 includes newly accepted first-instance case scope after commencement; not a simple project-date switch"]}
+  }
+}
