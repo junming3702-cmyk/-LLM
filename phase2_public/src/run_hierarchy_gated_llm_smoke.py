@@ -444,9 +444,17 @@ def run_final_reasoning(
     prompt: str,
     runtime_input: dict[str, Any],
     max_tokens: int,
+    scope_policy=None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Run one final-reasoning pass and apply the deterministic gate."""
 
+    if scope_policy and (scope_policy.geographic_filter or scope_policy.task_boundary):
+        from scope_boundary_policy import prepare_runtime, TASK_PROMPT
+        prepared = prepare_runtime(runtime_input, scope_policy)
+        runtime_input.clear()
+        runtime_input.update(prepared)
+        if scope_policy.task_boundary:
+            prompt += TASK_PROMPT
     response = model_request(
         api_key,
         prompt,
@@ -475,6 +483,7 @@ def run_case(
     compact_final_output: bool,
     experiment_run_id: str,
     external_fallback: ExternalFallbackStateMachine | None = None,
+    scope_policy=None,
 ) -> dict[str, Any]:
     query = label["document_excerpt"]
     retrieval_queries = [
@@ -483,6 +492,18 @@ def run_case(
         if str(value).strip()
     ] or [query]
     context = build_context(context_template, label)
+    scope_audit = []
+    task_overlay = ""
+    review_task = None
+    if scope_policy and scope_policy.geographic_filter:
+        from scope_boundary_policy import ContextFilteredRetriever
+        retriever = ContextFilteredRetriever(retriever, context, scope_policy)
+        scope_audit = retriever.audit
+    if scope_policy and scope_policy.task_boundary:
+        from scope_boundary_policy import task_contract, TASK_PROMPT
+        review_task = task_contract({"project_context": context,
+            "contract_evidence": {k: label[k] for k in ("document_id", "document_location", "document_excerpt")}})
+        task_overlay = TASK_PROMPT
     audit_levels: list[dict[str, Any]] = []
     retained_by_id: dict[str, dict[str, Any]] = {}
     stopped_at = "none"
@@ -579,6 +600,10 @@ def run_case(
                 break
             retriever.assert_no_cross_level_mix(candidates, level)
             if not candidates:
+                unresolved_scope = [x for x in scope_audit if x["level"] == level and x["phase"] == phase
+                    and not x["allowed"] and not x["reason"].startswith("geographic_mismatch_")]
+                if unresolved_scope:
+                    level_state = "relevant_but_inconclusive"
                 phase_records.append(
                     {
                         "issue_id": label["issue_id"],
@@ -586,10 +611,12 @@ def run_case(
                         "retrieval_executed": True,
                         "retrieval_status": "completed_no_hit",
                         "candidate_count": 0,
-                        "level_state": "no_usable_violation_found",
+                        "level_state": "relevant_but_inconclusive" if unresolved_scope else "no_usable_violation_found",
                         "candidate_dispositions": [],
                     }
                 )
+                if unresolved_scope:
+                    phase_records[-1]["scope_quarantine"] = unresolved_scope
                 continue
             runtime = {
                 "issue_id": label["issue_id"],
@@ -616,9 +643,11 @@ def run_case(
                     "human_review_is_mandatory_for_delivered_findings": True,
                 },
             }
+            if review_task is not None:
+                runtime["review_task_contract"] = review_task
             response = model_request(
                 api_key,
-                TRIAGE_SYSTEM_PROMPT,
+                TRIAGE_SYSTEM_PROMPT + task_overlay,
                 runtime,
                 max_tokens=triage_max_tokens,
                 response_contract="triage",
@@ -846,12 +875,16 @@ def run_case(
             "single_issue_compact_output": compact_final_output,
         },
     }
+    if scope_policy and (scope_policy.geographic_filter or scope_policy.task_boundary):
+        runtime_input["scope_boundary_experiment"] = scope_policy.flags()
+        runtime_input["geographic_prefilter_audit"] = scope_audit
     effective_final_prompt = final_prompt + FINAL_COMPACT_OUTPUT_CONTRACT if compact_final_output else final_prompt
     preliminary_response, preliminary_gate = run_final_reasoning(
         api_key=api_key,
         prompt=effective_final_prompt,
         runtime_input=runtime_input,
         max_tokens=final_max_tokens,
+        scope_policy=scope_policy,
     )
     recheck_eligible = eligible_for_one_shot_external_recheck(preliminary_gate)
     recheck_attempted = False
@@ -930,11 +963,15 @@ def run_case(
                 prompt=effective_final_prompt,
                 runtime_input=runtime_input,
                 max_tokens=final_max_tokens,
+                scope_policy=scope_policy,
             )
         else:
             # Refresh the deterministic audit against the post-recheck runtime
             # without asking the LLM to reinterpret unverified or absent evidence.
             preliminary_gated_response: Any = preliminary_gate.get("response", {})
+            if scope_policy and (scope_policy.geographic_filter or scope_policy.task_boundary):
+                from scope_boundary_policy import prepare_runtime
+                runtime_input = prepare_runtime(runtime_input, scope_policy)
             gate_result = apply_gate(preliminary_gated_response, runtime_input)
 
     result = {

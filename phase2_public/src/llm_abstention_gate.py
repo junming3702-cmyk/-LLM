@@ -2397,6 +2397,20 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
     """Return raw-preserving gate result with a safe final response."""
 
     actions: list[str] = []
+    scope_flags = runtime_input.get("scope_boundary_experiment") or {}
+    if scope_flags.get("version") == "scope-boundary-v1" and scope_flags.get("geographic_filter") is True:
+        # Defense in depth against bypassing retrieval admission. Runtime-only
+        # policy; a same-named field in the model response never enables it.
+        from scope_boundary_policy import geographic_decision
+        runtime_input = deepcopy(runtime_input)
+        admitted = []
+        for source in runtime_input.get("retrieved_legal_evidence", []):
+            decision = geographic_decision(source, runtime_input.get("project_context") or {})
+            if decision["allowed"]:
+                admitted.append(source)
+            else:
+                actions.append(f"scope policy rejected {source.get('chunk_id')}: {decision['reason']}")
+        runtime_input["retrieved_legal_evidence"] = admitted
     if not isinstance(raw_response, dict):
         reason = "LLM response was not a JSON object"
         return {
@@ -2409,6 +2423,8 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
 
     response = deepcopy(raw_response)
     raw_response_preserved = deepcopy(raw_response)
+    if scope_flags.get("version") == "scope-boundary-v1" and (scope_flags.get("geographic_filter") or scope_flags.get("task_boundary")):
+        _set_field(response, "scope_boundary_experiment", deepcopy(scope_flags), actions, "root")
     _set_field(response, "run_id", runtime_input.get("run_id", ""), actions, "root")
     _set_field(response, "project_id", runtime_input.get("project_id", ""), actions, "root")
     _set_field(response, "conclusion_contract_version", CONCLUSION_CONTRACT_VERSION, actions, "root")
@@ -2521,6 +2537,11 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
                 actions.append(f"removed unsupported article references from {path}.{prose_field}: {sorted(unsupported)}")
         usable_evidence = [item for item in evidence if _is_usable_legal_basis(item)]
         bounded_review = _runtime_bounded_review(runtime_input, usable_evidence)
+        task_boundary = {}
+        if scope_flags.get("version") == "scope-boundary-v1" and scope_flags.get("task_boundary") is True:
+            from scope_boundary_policy import boundary_audit
+            task_boundary, bounded_review = boundary_audit(runtime_input, finding, bounded_review)
+            _set_field(finding, "runtime_task_boundary", task_boundary, actions, path)
         # Never accept a model-provided scope check with this field name.
         _set_field(finding, "runtime_bounded_review", bounded_review, actions, path)
         blocked_level4 = [
@@ -2621,9 +2642,10 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
             or canonical_input is None
             or (requires_runtime_fact_relation and not runtime_fact_relation_supported)
             or bool(bounded_review.get("missing_decisive_facts"))
+            or bool(task_boundary.get("force_insufficient"))
         )
         old_conclusion = finding.get("reasoning_conclusion", "")
-        if no_law_eligible and not missing_fields and not invalid_evidence and not runtime_violations and not usable_evidence:
+        if no_law_eligible and not missing_fields and not invalid_evidence and not runtime_violations and not usable_evidence and not task_boundary.get("force_insufficient"):
             if old_conclusion and "gate_original_conclusion" not in finding:
                 finding["gate_original_conclusion"] = old_conclusion
             _set_field(
@@ -2663,10 +2685,15 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
             if old_conclusion and "gate_original_conclusion" not in finding:
                 finding["gate_original_conclusion"] = old_conclusion
             reason_parts = []
+            if task_boundary.get("force_insufficient"):
+                reason_parts.append("判断超出当前审查任务边界或任务未确认：" + task_boundary.get("reason", "unknown"))
             if bounded_review.get("missing_decisive_facts"):
                 reason_parts.append("尚缺：" + "、".join(bounded_review["missing_decisive_facts"]))
             elif requires_runtime_fact_relation and not runtime_fact_relation_supported:
-                reason_parts.append("尚缺与当前事项对应的实际比较事实，或该阶段明确适用的材料提交要求及已审记录")
+                if task_boundary.get("observations"):
+                    reason_parts.append("已定位前后条款文字差异；是否构成法律风险仍缺直接适用依据或条件，内部矛盾不等同违法")
+                else:
+                    reason_parts.append("尚缺与当前事项对应的实际比较事实，或该阶段明确适用的材料提交要求及已审记录")
             if missing_fields:
                 reason_parts.append("模型报告未闭合字段（不单独视为风险证据）：" + "、".join(missing_fields))
             if not evidence:
@@ -2704,7 +2731,8 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
             if only_supplementary and _finding_is_out_of_scope_reference(finding):
                 boundary = "not_supported_by_current_corpus"
             _set_field(finding, "evidence_boundary", boundary, actions, path)
-            _set_field(finding, "reasoning_conclusion", f"依据当前材料无法建立所主张的具体差异或判断是否违反要求。{reason}。不形成违规指控。", actions, path)
+            insufficiency_prefix = "已观察到文件内部文字差异，但尚不能认定法律风险。" if task_boundary.get("observations") else "依据当前材料无法建立所主张的具体差异或判断是否违反要求。"
+            _set_field(finding, "reasoning_conclusion", f"{insufficiency_prefix}{reason}。不形成违规指控。", actions, path)
             _set_field(finding, "compliance_relation", "unresolved", actions, path)
             _set_field(finding, "risk_category", "missing_or_insufficient_evidence", actions, path)
             _set_field(finding, "recommended_human_action", f"请补充并核验上述缺口：{reason}；取得完整原文及定位后进行人工二次审核。", actions, path)
