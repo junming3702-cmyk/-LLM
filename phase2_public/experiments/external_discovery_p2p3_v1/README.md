@@ -61,3 +61,41 @@ Current scoped integration checks passed for eight admitted article snapshots; f
 
 Public repository: model code, synthetic engineering fixtures, pending synthetic tasks, public source catalogue and an aggregate engineering report only.
 Private E-drive locations: keys, raw/API logs, sidecars, human labels, expert data, paper materials and review records. `.local_runs/` is ignored. P1 stage approval does not retroactively fill source/version dates or approve new P3 references.
+
+## Controlled execution follow-up
+
+`controlled_execution.py` now enforces prescribed source/article availability
+before ranking, reads both P1 and P3 immutable snapshots, and maps admitted
+articles to the production evidence schema through a strict whitelist. The
+source sidecar is rechecked for each case; reviewer identities, source-to-task
+reference mappings and expected conclusions never enter the LLM payload.
+Literal private/local URLs fail before DNS. Supplementary materials cannot be
+promoted to independent law even by a mistakenly permissive sidecar.
+
+Eight injected fault cases are executed separately with eligible positive
+controls, zero actual HTTP requests and no legal-accuracy claim. Page-instruction
+quarantine is not a demonstration of general LLM prompt-injection resistance.
+`prepare_execution.py` v2 retains the approved facts while exposing the task
+stage explicitly; historical v1 private artifacts are not overwritten. This
+transformation does not constitute new human adjudication.
+
+`run_controlled_reasoning.py` implements a shared local preliminary generation,
+then at most one external recheck after successful preliminary insufficient
+information. It can compare the historical fixed-access manifest, a new
+source-matched access-only control, and bounded article discovery. These are
+implemented-system comparisons, **not evidence that discovery beats a strong
+alternative ranker**. The historical URL-only manifest is explicitly weak; no
+article targets are fabricated to make it look operational.
+
+Natural-corpus and predeclared artificial article-gap conditions use separate
+run directories. Prescribed candidate-availability tests remain constrained in
+both conditions. Actual removed chunks are logged; the original corpus is never
+modified. Online calls are DeepSeek reasoning only; legal sources use frozen
+snapshot replay, not new live verification. Failures remain in the denominator,
+and automatic retries are disabled. All arms use identical decision parameters
+and share the same local generation, so arm observations are paired rather than
+independent samples. References are only for a separate offline evaluator.
+
+The runtime requires an explicit authorization switch, a separate preflight
+manifest, scoped approved source reviews and original snapshot roots. These
+private materials and live API outputs must never be committed to this repo.

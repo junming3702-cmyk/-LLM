@@ -6,6 +6,7 @@ not an autonomous Internet search. P1's extractor and scope gate are reused.
 """
 from __future__ import annotations
 import hashlib
+import ipaddress
 import json
 import multiprocessing as mp
 import re
@@ -31,6 +32,15 @@ def safe_url(url):
         raise ValueError('unsafe_url')
     if re.search(r'(?i)(token|secret|password|api.?key|authorization)', p.query):
         raise ValueError('sensitive_url_query')
+    host = p.hostname.rstrip('.').lower()
+    if host in ('localhost', 'localhost.localdomain') or host.endswith('.local'):
+        raise ValueError('non_public_destination')
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        address = None  # Actual DNS answers are checked again by fetch_public.
+    if address is not None and not address.is_global:
+        raise ValueError('non_public_destination')
     return url
 
 def load_catalogue():
@@ -246,10 +256,13 @@ def admit_candidate(packet, review, context, snapshot=None):
             'independent_legal_evidence': not reasons, 'reasons': sorted(set(reasons)),
             'acquisition_channel': 'external_curated_discovery'}
 
-def recheck(preliminary, terms, context, catalogue, store, *, reviews=None, live=False, prior_attempts=0, fetcher=bounded_fetch, seconds=60):
+def recheck(preliminary, terms, context, catalogue, store, *, reviews=None, live=False, prior_attempts=0, fetcher=bounded_fetch, seconds=60, candidate_allowlist=None):
     if seconds <= 0 or seconds > 60:
         raise ValueError('invalid_total_budget')
     start = time.monotonic()
+    if candidate_allowlist is not None and (not isinstance(candidate_allowlist, (list, tuple)) or
+            not all(isinstance(x, str) and ':' in x for x in candidate_allowlist)):
+        raise ValueError('invalid_candidate_allowlist')
     result = {'schema': VERSION, 'preliminary_conclusion': preliminary, 'final_conclusion': preliminary,
               'external_rounds': prior_attempts, 'network_requests': 0, 'cache_hits': 0,
               'sources': [], 'candidates': [], 'admitted_evidence': [], 'requires_human_second_review': True,
@@ -287,6 +300,10 @@ def recheck(preliminary, terms, context, catalogue, store, *, reviews=None, live
             text = html_text(raw, meta['encoding'])
             snapshots[source['url']] = (raw, {**meta, 'source_url': source['url']})
             found, rejected = discover_articles(source, text, meta['raw_sha256'], terms)
+            if candidate_allowlist is not None:
+                kept = [p for p in found if p['source_id']+':'+p['article'] in candidate_allowlist]
+                rec['candidate_constraint_excluded_count'] = len(found)-len(kept)
+                found = kept
             candidates.extend(found)
             rec.update(status='parsed', parsed_candidates=len(found), blocked_article_boundaries=rejected,
                        raw_sha256=meta['raw_sha256'], fetched_at=meta.get('fetched_at'))

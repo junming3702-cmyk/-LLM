@@ -51,6 +51,21 @@ QUESTIONS = {
  'P3-20':'核对招标规模标准的时点适用条件。',
 }
 
+# Explicit task metadata, derived from the original task text, never outcomes.
+# The previous generic stage made the task-boundary classifier return unknown
+# even for an explicitly proposed contract clause. Keep v1 artifacts immutable.
+CLAUSE_CASES = {'P3-01','P3-04','P3-07','P3-08','P3-13','P3-21'}
+RESPONSE_CASES = {'P3-02','P3-05','P3-06','P3-09','P3-11','P3-14'}
+COMPLETENESS_CASES = {'P3-03','P3-15'}
+
+
+def task_stage(uid):
+    if uid in CLAUSE_CASES: return 'clause_pre_review：合成合同条款设计预审，不证明实际履行'
+    if uid in RESPONSE_CASES: return 'document_response：仅核对合成材料明确记载的状态'
+    if uid in COMPLETENESS_CASES: return 'document_completeness：合成材料完整性审查，非完整项目文件'
+    if uid == 'P3-10': return 'performance_verification：拟开工状态核验，不推定已实际开工'
+    return '合成材料限定问题预审；版本或适用性未确定时保持任务边界'
+
 
 def compile_inputs(spec, approval):
     spec_hash=canonical_hash(spec)
@@ -68,11 +83,11 @@ def compile_inputs(spec, approval):
         runtime_ctx={'project_location':location,
             'project_type':{'construction':'建筑施工工程（合成）','services':'服务采购（合成）','goods':'货物采购（合成）'}.get(ctx.get('project_type'),'unknown'),
             'procurement_regime':ctx.get('procurement_regime'),'review_as_of':ctx.get('as_of'),
-            'document_stage':'合成材料的限定问题预审；不推定实际提交或履行情况',
+            'document_stage':task_stage(uid),
             'review_question':QUESTIONS.get(uid,'仅审查所示文本与可用法规依据之间的关系。'),
             'evidence_boundary':'合成材料；仅限明确提供的事实，不代表完整项目文件。'}
         row={'issue_id':uid,'project_id':'P3-SYNTHETIC','document_id':'SYN-'+uid,
-            'document_location':'approved synthetic task '+uid+' / fact-only transformation v1',
+            'document_location':'approved synthetic task '+uid+' / fact-only transformation v2',
             'document_excerpt':FACTS[uid],'runtime_project_context':runtime_ctx,
             'retrieval_queries':task['terms'],'external_legal_query_terms':task['terms']}
         validate_runtime(row)
@@ -83,6 +98,7 @@ def compile_inputs(spec, approval):
             'engineering_only':bool(task.get('fault')),
             'source_class_hint':'supplement_only' if task.get('category')=='supplement_only' else None})
         transforms.append({'issue_id':uid,'original_description':task['text'],'fact_only_text':FACTS[uid],
+            'task_stage':runtime_ctx['document_stage'],'input_transform_version':'v2-explicit-task-metadata',
             'runtime_row_sha256':digest(row),'raw_task_description_sha256':digest(task['text']),
             'synthetic_protocol_case':bool(task.get('fault')),
             'new_human_verification_claimed':False})
