@@ -29,6 +29,7 @@ from run_factorial_online import validate_rows
 from controlled_execution import (ReadOnlySnapshots,compile_controls,load_catalogue,
     legacy_entries,replay_discovery,replay_fixed_access,source_matched_access_entries,
     bridge_result,INSUFFICIENT,canonical_hash)
+from result_contract import finalize_metadata
 
 ARMS=('A_local','B_fixed_access','B_source_matched_access','C_article_discovery')
 # Dataset-level availability manipulation predeclared independently of row labels.
@@ -253,6 +254,8 @@ def main():
                     result['p3_one_shot_audit']={'attempted':False,'rounds':0,'reason':'not_a_successful_preliminary_insufficient'}
                 outcomes[arm]=result
             for arm,result in outcomes.items():
+                result=finalize_metadata(result)
+                outcomes[arm]=result
                 result['raw_observation']=semantic_observation(result,True)
                 result['gated_observation']=semantic_observation(result)
                 result['p3_arm']=arm

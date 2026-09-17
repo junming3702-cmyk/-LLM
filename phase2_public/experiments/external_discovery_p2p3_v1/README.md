@@ -33,7 +33,7 @@ For offline replay use the same cache, a **new** output directory and omit `--li
 
 `run_llm_smoke.py` sends three explicitly marked **development** probes only after the operator supplies `--authorized-public-synthetic` and an environment-file path. It requests `deepseek-v4-flash`, temperature 0, max_tokens 2048. It logs requested/returned model, finish reason, usage and channel diagnostics. It selects parsable `reasoning_content` first, otherwise `content`, then runs the citation gate. Credentials and private reasoning text are not persisted. It uses a dedicated probe prompt, not the frozen production prompt. No automatic retry.
 
-## P3 is started, not a completed benchmark
+## P3 registration history (before the controlled execution below)
 
 `p3_tasks.pending.json` preserves the **initial 30 AI-authored proposals**, distinct from the legacy 60-query set and expert case inputs. They include near-neighbour cases within families and share some development laws: not law-disjoint and not 30 independent projects. Subsequent operator approvals are stored separately and privately; the public proposal file alone is not proof of human approval. They must not be used for tuning while intended as a holdout.
 
@@ -47,7 +47,7 @@ Before formal A/B/C execution:
 4. Freeze external snapshots and admit human-confirmed evidence under the same policy; count C's added human effort. Measure network health separately from replay performance.
 5. Only then calculate evidence Recall@5, MRR, supported rescues, applicability precision, safety, citation traceability and effort/latency. Report per-family/category descriptive results; no independence or causal efficiency claims.
 
-The evaluator currently validates three-arm coverage/controls and human lock, then calculates macro **evidence** Recall@5 (not hit rate), reciprocal rank over the supplied ranking, outcome agreement, safety and traceability counts. Zero-relevant tasks are excluded from retrieval denominators. It is an evaluator, **not yet the three-arm execution runner**. Rescue/precision/efficiency analyses require final adjudication/effort records; do not fabricate them from software tests.
+The original evaluator validates three-arm coverage/controls and human lock, then calculates macro **evidence** Recall@5 (not hit rate), reciprocal rank over the supplied ranking, outcome agreement, safety and traceability counts. Zero-relevant tasks are excluded from retrieval denominators. The controlled execution runner and additional offline analyzer are described below. Legal-grounding/precision/efficiency claims still require appropriate adjudication/effort records; do not fabricate them from software tests.
 
 ## Materializing an issued approval
 
@@ -55,7 +55,7 @@ The evaluator currently validates three-arm coverage/controls and human lock, th
 
 When an operator approves only the registered experiment date, the `valid_from` / `verified_through` pair denotes a **single-day approved case window**, not the statute's commencement or repeal dates. Unknown statutory dates remain null. Historical/future use fails closed. Library membership never bypasses a fresh per-case applicability check, and evaluation references must not be injected into the retrieved ranking.
 
-Current scoped integration checks passed for eight admitted article snapshots; formal A/B/C execution, fact-only payload construction, matched corpus/mask freeze and final exporter integration remain unfinished. See `ADMISSION_INTEGRATION_20260917.md`. No repeated task/source approval is required for these same private frozen records; changes in task content, legal source version or scope require a new record.
+The initial scoped integration checks passed for eight admitted article snapshots. See `ADMISSION_INTEGRATION_20260917.md` for that historical checkpoint; execution subsequently progressed as described below. No repeated task/source approval is required for these same private frozen records; changes in task content, legal source version or scope require a new record.
 
 ## Data boundary
 
@@ -99,3 +99,34 @@ independent samples. References are only for a separate offline evaluator.
 The runtime requires an explicit authorization switch, a separate preflight
 manifest, scoped approved source reviews and original snapshot roots. These
 private materials and live API outputs must never be committed to this repo.
+
+## Completed execution and metadata contract
+
+The private corrected runs each completed 22 legal tasks, separately for natural
+corpus and controlled-gap conditions. Eight fault probes are a separate software
+test stratum, not legal cases. The first integration-diagnostic run is retained;
+it is not silently replaced with the corrected runs. A fact-only v3 preparation
+retains explicit task stage and the registered project-type code. Reference
+labels remain offline and are not put into reasoning requests.
+
+The optional `external_scope_bridge` is disabled by default. In this controlled
+runner only, an admitted external article can use its exact case-day approval
+window after fresh identity/context/source/hash checks. That window is not a
+statutory commencement date. Required issuer, title, version, retrieval metadata
+and source locators are retained. This does not weaken the production default.
+
+`analyse_p3_controlled.py` and `render_p3_controlled.py` under
+`experiments/scope_boundary_v1` validate the two conditions and report raw versus
+gated outcomes, paired changes, request usage and conditional external ranking.
+A correct outcome label is not proof of a correct legal basis. Alternative
+citations and procurement-regime applicability remain separately reviewable.
+Conditional external Recall/MRR must not be presented as full-system retrieval
+metrics or pooled with the legacy 60-query/REAL45 sets.
+
+`result_contract.py` derives delivery status from the actual final response and
+`p3_one_shot_audit`, not inherited preliminary-run flags. It distinguishes an
+external reasoning request being dispatched from completing successfully. For
+historical runs, its CLI writes a new hash-linked metadata-only projection,
+without rewriting answers, evidence or source files and without model calls.
+Future controlled runs apply the same contract before saving results. This is a
+reporting-integrity fix, not a reasoning accuracy improvement.
