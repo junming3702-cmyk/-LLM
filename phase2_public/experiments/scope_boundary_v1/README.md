@@ -120,3 +120,16 @@ contrasts, source-applicability diagnostics and actual provider usage. It does
 not transfer prior expert B ratings or invent exhaustive REAL45 relevance
 judgments for Recall/MRR. `test_analysis.py` tests denominator and contrast
 handling with synthetic records only.
+
+`retry_transport_sensitivity.py` selects only audited transient transport failures
+from a finished primary run, without consulting reference labels. It checks the
+original package/input/corpus/prompt bindings, and repeats each eligible **whole
+unit** once in a separate directory. This is a new stochastic generation, not
+an exact replay of the successful request prefix. It cannot replace primary
+failures or retry invalid/truncated outputs. Run its preflight first; use the
+original frozen package rather than the editable follow-up worktree.
+
+`render_analysis_report.py` renders all four groups, raw/gated stages, all planned
+denominators, paired improvements AND deteriorations, project summaries, source
+diagnostics and actual usage from the completed offline analysis. It makes no
+network call and modifies neither the model nor the analysis input.
