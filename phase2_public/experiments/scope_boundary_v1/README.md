@@ -129,6 +129,10 @@ an exact replay of the successful request prefix. It cannot replace primary
 failures or retry invalid/truncated outputs. Run its preflight first; use the
 original frozen package rather than the editable follow-up worktree.
 
+`analyse_transport_sensitivity.py` joins the separately retained repeat only in
+an explicitly labelled sensitivity overlay. It checks the primary/result linkage
+and keeps the first-run data intact, reporting additional API usage separately.
+
 `render_analysis_report.py` renders all four groups, raw/gated stages, all planned
 denominators, paired improvements AND deteriorations, project summaries, source
 diagnostics and actual usage from the completed offline analysis. It makes no
