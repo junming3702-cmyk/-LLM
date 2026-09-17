@@ -2393,7 +2393,7 @@ def _final_consistency_pass(
         _set_field(finding, "human_review_status", "review_required", actions, path)
 
 
-def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
+def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = False) -> dict:
     """Return raw-preserving gate result with a safe final response."""
 
     actions: list[str] = []
@@ -2628,6 +2628,19 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
             )
             and not no_issue_eligible
         )
+        binding_audit = {}
+        if risk_binding:
+            from risk_binding_policy import audit_risk_binding
+            binding_audit = audit_risk_binding(
+                finding, canonical_input=canonical_input,
+                usable_evidence=usable_evidence, risk_candidate=evidence_backed_risk,
+                runtime_relation_supported=runtime_fact_relation_supported,
+                trusted_confirmation=bool(confirmation.get("trusted")),
+            )
+            _set_field(finding, "risk_binding_audit", binding_audit, actions, path)
+            if binding_audit["force_insufficient"]:
+                evidence_backed_risk = False
+                actions.append(f"blocked {path} unsupported risk promotion: " + ",".join(binding_audit["reasons"]))
         no_law_invariant = bool(
             no_law_eligible
             and not usable_evidence
@@ -2643,6 +2656,7 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
             or (requires_runtime_fact_relation and not runtime_fact_relation_supported)
             or bool(bounded_review.get("missing_decisive_facts"))
             or bool(task_boundary.get("force_insufficient"))
+            or bool(binding_audit.get("force_insufficient"))
         )
         old_conclusion = finding.get("reasoning_conclusion", "")
         if no_law_eligible and not missing_fields and not invalid_evidence and not runtime_violations and not usable_evidence and not task_boundary.get("force_insufficient"):
@@ -2685,6 +2699,8 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
             if old_conclusion and "gate_original_conclusion" not in finding:
                 finding["gate_original_conclusion"] = old_conclusion
             reason_parts = []
+            if binding_audit.get("force_insufficient"):
+                reason_parts.append("风险结论未通过直接法条与事实差异绑定核验，不能仅凭风险类别或检索风险标记认定潜在违规：" + ",".join(binding_audit["reasons"]))
             if task_boundary.get("force_insufficient"):
                 reason_parts.append("判断超出当前审查任务边界或任务未确认：" + task_boundary.get("reason", "unknown"))
             if bounded_review.get("missing_decisive_facts"):

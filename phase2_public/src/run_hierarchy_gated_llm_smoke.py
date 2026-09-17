@@ -445,6 +445,7 @@ def run_final_reasoning(
     runtime_input: dict[str, Any],
     max_tokens: int,
     scope_policy=None,
+    risk_binding: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Run one final-reasoning pass and apply the deterministic gate."""
 
@@ -455,6 +456,9 @@ def run_final_reasoning(
         runtime_input.update(prepared)
         if scope_policy.task_boundary:
             prompt += TASK_PROMPT
+    if risk_binding:
+        from risk_binding_policy import PROMPT as RISK_BINDING_PROMPT
+        prompt += RISK_BINDING_PROMPT
     response = model_request(
         api_key,
         prompt,
@@ -467,7 +471,9 @@ def run_final_reasoning(
     raw: Any = response.get("parsed")
     if raw is None:
         raw = response.get("selected_text", "")
-    return response, apply_gate(raw, runtime_input)
+    gated = (apply_gate(raw, runtime_input, risk_binding=True) if risk_binding
+             else apply_gate(raw, runtime_input))
+    return response, gated
 
 
 def run_case(

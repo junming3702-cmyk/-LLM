@@ -92,6 +92,34 @@ All results containing source documents or human assessments stay outside the
 public repository. Only generic model code, synthetic tests and this protocol
 are suitable for version control.
 
+## Optional risk-binding follow-up (not part of the original factorial)
+
+The default gate remains unchanged. `apply_gate(..., risk_binding=True)` adds a
+necessary structural check: a model risk claim must name a usable, cited chunk
+and an explicit fact-law difference. Risk-category or triage flags alone must
+not promote an abstaining model answer. Caller-validated runtime documentary
+relations and confirmation records retain their existing pathways. Unresolved
+legal interpretation is not, on its own, a reason to suppress potential risk.
+This is not a semantic entailment validator and never proves compliance.
+
+`replay_risk_binding.py` is an offline, fixed-raw-response diagnostic. It verifies
+exact reproduction of completed source gates with the option disabled and
+retains failed outputs in all denominators. It must not be presented as a new
+independent test or as the effect of a changed prompt.
+
+`run_fixed_packet_reasoning.py` compares two fresh final-reasoning prompt arms
+on the same 45 frozen geography+task evidence packets. Both deterministic gate
+settings are applied to each raw answer, separating prompting from gating.
+It does not rerun retrieval or expand the corpus. Reference answers are not
+inputs. Parameters are fixed before execution: same provider/model, temperature
+0.1, final limit 16384, low reasoning effort, one attempt, three-unit concurrency,
+cyclic order. The first unit per project is an included smoke check; all six
+generations must complete before the remaining batch starts. All failures stay
+in the denominator. Preflight hashes source packets, code and both prompts;
+the runtime budget is at most 90 calls, 1,474,560 reserved output tokens and two
+hours. Actual usage is reported separately. This remains development-exposed
+mechanism evaluation; old expert ratings do not apply to these new generations.
+
 ## Consent-scoped online factorial runner
 
 `run_factorial_online.py --help` gives the required explicit input, corpus,
