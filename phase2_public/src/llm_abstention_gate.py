@@ -894,7 +894,7 @@ def _minimal_response(runtime_input: dict, reason: str) -> dict:
     }
 
 
-def _canonicalize_evidence(finding: dict, runtime_input: dict, actions: list[str], *, external_scope_bridge: bool = False) -> tuple[list[dict], bool, bool]:
+def _canonicalize_evidence(finding: dict, runtime_input: dict, actions: list[str], *, external_scope_bridge: bool = False, external_auto_candidates: bool = False) -> tuple[list[dict], bool, bool]:
     supplied: dict[str, dict] = {}
     duplicate_chunk_ids: set[str] = set()
     runtime_rows = runtime_input.get("retrieved_legal_evidence", [])
@@ -998,9 +998,14 @@ def _canonicalize_evidence(finding: dict, runtime_input: dict, actions: list[str
             "statutory_expiry_date",
             "scope_verification_day",
             "temporal_boundary",
+            "automatic_source_admission",
         )
         external_source = _is_external_source(source)
-        external_pending = external_source and _external_evidence_is_pending(source)
+        auto_candidate = False
+        if external_source and external_auto_candidates:
+            from external_auto_candidate_policy import machine_candidate_admitted
+            auto_candidate = machine_candidate_admitted(source, runtime_input)
+        external_pending = external_source and not auto_candidate and _external_evidence_is_pending(source)
         explicit_none_fields = {
             field for field in authoritative_fields
             if field in source and source.get(field) is None
@@ -1128,7 +1133,8 @@ def _canonicalize_evidence(finding: dict, runtime_input: dict, actions: list[str
                 source.get("issuer"),
                 source.get("source_title"),
                 source.get("source_version"),
-                source.get("effective_date") or ("registered_case_day_only_NOT_statutory_date" if scoped_date_supported else None),
+                source.get("effective_date") or ("registered_case_day_only_NOT_statutory_date" if scoped_date_supported
+                    else ("supplement_only_validity_uncertified" if auto_candidate else None)),
                 source.get("retrieved_at"),
                 external_hash,
                 source.get("article"),
@@ -1141,6 +1147,8 @@ def _canonicalize_evidence(finding: dict, runtime_input: dict, actions: list[str
                     f"rejected external legal_evidence[{index}] because source URL/identity/version/hash/locator is incomplete"
                 )
                 continue
+            if auto_candidate:
+                actions.append(f"retained external legal_evidence[{index}] as machine-checked supplement; validity uncertified; no human pre-admission claimed")
         canonical.append(item)
 
     finding["legal_evidence"] = canonical
@@ -2402,7 +2410,7 @@ def _final_consistency_pass(
         _set_field(finding, "human_review_status", "review_required", actions, path)
 
 
-def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = False, external_scope_bridge: bool = False, source_role_guard: bool = False) -> dict:
+def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = False, external_scope_bridge: bool = False, source_role_guard: bool = False, external_auto_candidates: bool = False) -> dict:
     """Return raw-preserving gate result with a safe final response."""
 
     actions: list[str] = []
@@ -2541,7 +2549,7 @@ def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = F
             or coverage.get(field) not in VALID_COVERAGE_STATES
         ]
 
-        evidence, invalid_evidence, only_supplementary = _canonicalize_evidence(finding, runtime_input, actions, external_scope_bridge=external_scope_bridge)
+        evidence, invalid_evidence, only_supplementary = _canonicalize_evidence(finding, runtime_input, actions, external_scope_bridge=external_scope_bridge, external_auto_candidates=external_auto_candidates)
         for prose_field in ("reasoning_conclusion", "recommended_human_action"):
             unsupported = _unsupported_article_refs(finding.get(prose_field), evidence)
             if unsupported:
