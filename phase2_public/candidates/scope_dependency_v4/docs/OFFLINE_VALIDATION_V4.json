@@ -1,0 +1,17 @@
+{
+  "version": "scope-dependency-v4-candidate",
+  "status": "offline_only_not_promoted",
+  "tests_run": 252,
+  "legacy_test_groups": 217,
+  "new_test_groups": 35,
+  "failures": 0,
+  "errors": 0,
+  "provider_calls": 0,
+  "reference_answers_used": false,
+  "test_unit": "test methods/function groups; subcases not independent samples",
+  "source_hashes_preserved": true,
+  "prior_attempts_retained": true,
+  "online_prompt_effectiveness_evaluated": false,
+  "legal_accuracy_inferred": false,
+  "production_promoted": false
+}

@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.env
+.env.*
+.local_runs/
+validation/
+runs/
+outputs/
+*.xlsx
+*.pdf
+*.docx
+*.private.json
+*.private.jsonl
