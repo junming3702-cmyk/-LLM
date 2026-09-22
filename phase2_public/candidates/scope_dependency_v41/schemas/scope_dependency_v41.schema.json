@@ -1,0 +1,246 @@
+{
+  "basis": {
+    "answerability": {
+      "description": "关系未解决必须用 scope_unresolved，而非法律 U。",
+      "enum": [
+        "sufficient",
+        "decisive_gap",
+        "scope_unresolved"
+      ],
+      "required": true,
+      "type": "text"
+    },
+    "bounded_conclusion": {
+      "description": "当前问题内的实质结论，不证明总体合规。",
+      "required": true,
+      "type": "text"
+    },
+    "completed_checks": {
+      "description": "已完成观察/法规比对；U 可为空，不伪造完成项。",
+      "required": true,
+      "type": "checks"
+    },
+    "gaps": {
+      "description": "每项仅一种材料依赖；混合事项拆开，未知保持未知。",
+      "required": true,
+      "type": "gaps"
+    },
+    "review_question": {
+      "description": "原样复制已锁定问题。",
+      "required": true,
+      "type": "text"
+    },
+    "review_target": {
+      "description": "对应锁定任务模式。",
+      "enum": [
+        "textual_pre_review",
+        "document_response",
+        "document_completeness",
+        "actual_conduct"
+      ],
+      "required": true,
+      "type": "text"
+    },
+    "task_scope_sha256": {
+      "description": "原样复制 review_task_contract_v41.input_scope_sha256。",
+      "required": true,
+      "type": "text"
+    }
+  },
+  "check": {
+    "check": {
+      "description": "必须填写具体检查名称；comparison不能代填。",
+      "required": true,
+      "type": "text"
+    },
+    "check_id": {
+      "description": "本单元内唯一检查编号。",
+      "required": true,
+      "type": "text"
+    },
+    "check_kind": {
+      "description": "观察不作为独立法律依据。",
+      "enum": [
+        "text_observation",
+        "legal_comparison"
+      ],
+      "required": true,
+      "type": "text"
+    },
+    "claim_ids": {
+      "description": "对应 required_claims；观察必须为空，法规比对不可为空。",
+      "required": true,
+      "type": "strings"
+    },
+    "comparison": {
+      "description": "具体说明原文与要求的相同/差异及适用前提，不能只列法条。",
+      "required": true,
+      "type": "text"
+    },
+    "document_fragments": {
+      "description": "可选，跨段时每段单独精确定位，2–8项。",
+      "required": false,
+      "type": "fragments"
+    },
+    "document_locator": {
+      "description": "精确定位；多片段定位用分号连接。",
+      "required": true,
+      "type": "text"
+    },
+    "document_quote": {
+      "description": "所给原文精确引用；多片段为逐项换行连接。",
+      "required": true,
+      "type": "text"
+    },
+    "legal_chunk_ids": {
+      "description": "只填实际准入的法条；观察必须为空数组。",
+      "required": true,
+      "type": "strings"
+    }
+  },
+  "dependency_kind_pairs": {
+    "actual_performance": [
+      "future_performance_unverified"
+    ],
+    "applicable_rule": [
+      "key_legal_source_missing"
+    ],
+    "authenticity": [
+      "authenticity_unverified"
+    ],
+    "comparison_operand": [
+      "comparison_value_missing"
+    ],
+    "current_clause_context": [
+      "input_evidence_missing",
+      "required_document_missing"
+    ],
+    "other_undetermined": [
+      "material_type_undetermined"
+    ],
+    "readability": [
+      "unreadable_evidence"
+    ],
+    "regulatory_applicability": [
+      "decisive_applicability_missing"
+    ],
+    "submission_package_completeness": [
+      "input_evidence_missing",
+      "required_document_missing"
+    ]
+  },
+  "fragment": {
+    "document_locator": {
+      "description": "该片段唯一输入定位。",
+      "required": true,
+      "type": "text"
+    },
+    "document_quote": {
+      "description": "单一片段精确原文。",
+      "required": true,
+      "type": "text"
+    }
+  },
+  "gap": {
+    "affected_claim_ids": {
+      "description": "决定性缺口须绑定已声明且需要该依赖的子结论。",
+      "required": true,
+      "type": "strings"
+    },
+    "blocks_current_question": {
+      "description": "必须与任务关系一致；false 不构成放行依据。",
+      "required": true,
+      "type": "bool"
+    },
+    "counterfactual_impact": {
+      "description": "若材料缺失/补全，哪一步判断不能完成/会改变；范围外说明为何不改变当前比对。",
+      "required": true,
+      "type": "text"
+    },
+    "dependency_key": {
+      "description": "缺失材料所属的一种依赖。",
+      "enum": [
+        "submission_package_completeness",
+        "authenticity",
+        "actual_performance",
+        "current_clause_context",
+        "applicable_rule",
+        "regulatory_applicability",
+        "comparison_operand",
+        "readability",
+        "other_undetermined"
+      ],
+      "required": true,
+      "type": "text"
+    },
+    "dependency_trigger": {
+      "description": "来源是任务明确要求、已观察冲突还是泛化猜测。",
+      "enum": [
+        "locked_requirement",
+        "observed_context_conflict",
+        "explicit_scope_exclusion",
+        "generic_unverified_possibility",
+        "undetermined"
+      ],
+      "required": true,
+      "type": "text"
+    },
+    "detail": {
+      "description": "只说明缺什么，不混合整包、真实性、补遗、金额等不同事项。",
+      "required": true,
+      "type": "text"
+    },
+    "gap_id": {
+      "description": "本单元内唯一缺口编号。",
+      "required": true,
+      "type": "text"
+    },
+    "kind": {
+      "description": "材料/证据状态，不使用范围外作为材料类型。",
+      "enum": [
+        "authenticity_unverified",
+        "comparison_value_missing",
+        "decisive_applicability_missing",
+        "future_performance_unverified",
+        "input_evidence_missing",
+        "key_legal_source_missing",
+        "material_type_undetermined",
+        "required_document_missing",
+        "unreadable_evidence"
+      ],
+      "required": true,
+      "type": "text"
+    },
+    "reason": {
+      "description": "说明该材料与当前子结论的关系，不写泛泛补查理由。",
+      "required": true,
+      "type": "text"
+    },
+    "task_relation": {
+      "description": "为什么与锁定任务有关。",
+      "enum": [
+        "decisive_for_claim",
+        "outside_locked_scope",
+        "undetermined"
+      ],
+      "required": true,
+      "type": "text"
+    },
+    "trigger_evidence": {
+      "description": "观察到具体冲突时必须给出原文定位；其他情形可为空数组。",
+      "required": true,
+      "type": "pointers"
+    }
+  },
+  "gate_owned_output_groups": [
+    "blocking_gap",
+    "out_of_scope_item",
+    "scope_review_item"
+  ],
+  "mechanical_aliases": {
+    "check": {
+      "check_name": "check"
+    }
+  },
+  "version": "scope-dependency-v4.1-candidate"
+}
