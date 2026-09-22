@@ -6,8 +6,8 @@ abstention. This checker does not certify the semantics of model explanations.
 from copy import deepcopy
 import re
 
-from scope_dependency_v41_schema import VERSION, DEPENDENCIES, SCHEMA, validate_basis
-from scope_dependency_v4 import validate_spec, TEXT_MODES, TARGETS, EXCLUDABLE
+from scope_dependency_v41_schema import VERSION, DEPENDENCIES, SCHEMA, validate_basis, expected_review_target, is_text_mode
+from scope_dependency_v41_spec import validate_spec
 from review_task_contract_v2 import digest, _binding, source_spans, evidence_binding_errors
 from exact_citation_fragments import check_document_binding
 from question_scope_signals import factual_question_audit
@@ -19,9 +19,11 @@ def build_contract(runtime, spec):
         raise ValueError("; ".join(errors))
     payload = {"version": VERSION, "input": _binding(runtime),
                "project_context": runtime.get("project_context") or runtime.get("runtime_project_context") or {},
-               "scope_spec": deepcopy(spec), "schema_sha256": digest(SCHEMA)}
+               "scope_spec": deepcopy(spec), "schema_sha256": digest(SCHEMA),
+               "expected_review_target": expected_review_target(spec["review_mode"])}
     return {"version": VERSION, "input_scope_sha256": digest(payload),
             "schema_sha256": digest(SCHEMA), "scope_spec": deepcopy(spec),
+            "expected_review_target": payload["expected_review_target"],
             "origin": "trusted_caller_before_inference",
             "human_approval_inferred": False, "input_completeness_certified": False}
 
@@ -71,7 +73,7 @@ def resolve_gap(gap, spec, spans, excerpt):
     if relation == "outside_locked_scope":
         if gap.get("blocks_current_question") is not False or affected:
             return hold("outside_relation_flag_or_claim_conflict")
-        if spec.get("review_mode") not in TEXT_MODES or dep not in EXCLUDABLE or dep not in spec.get("excluded_dependencies", []):
+        if not is_text_mode(spec.get("review_mode")) or dep not in SCHEMA["text_excludable_dependencies"] or dep not in spec.get("excluded_dependencies", []):
             return hold("outside_relation_not_authorized_by_locked_scope")
         if trigger != "explicit_scope_exclusion":
             return hold("outside_relation_requires_explicit_scope_exclusion")
@@ -95,13 +97,15 @@ def audit_basis_v41(runtime, finding, usable_evidence, scope_spec):
     errors += validate_basis(original)
     if not expected or basis.get("task_scope_sha256") != expected["input_scope_sha256"]:
         errors.append("response_scope_binding_missing_or_stale")
-    if basis.get("review_target") != TARGETS.get(spec.get("review_mode")):
+    if basis.get("review_target") != expected_review_target(spec.get("review_mode")):
         errors.append("response_target_not_locked_mode")
     if errors:
         return {"version": VERSION, "schema_valid": False, "schema_errors": errors,
                 "processing_status": "schema_blocked", "force_insufficient": True,
                 "eligible_no_issue": False, "blocking_reasons": [], "follow_up_only": [],
                 "completed_check_count": 0, "contract_bound": bound,
+                "expected_review_target": expected_review_target(spec.get("review_mode")),
+                "observed_review_target": basis.get("review_target"),
                 "scope_needs_confirmation": not bound, "relation_errors": [],
                 "gap_resolutions": [], "blocking_gaps": [], "out_of_scope_items": [],
                 "scope_review_items": [], "text_observations": [], "citation_binding_audits": [],

@@ -6,7 +6,15 @@ full JSON Schema. It governs protocol structure, never legal entailment.
 from copy import deepcopy
 import json
 
-VERSION = "scope-dependency-v4.1-candidate"
+VERSION = "scope-dependency-v4.1.1-candidate"
+HANDOFF_PROTOCOL_VERSIONS = frozenset({"scope-dependency-v4.1-candidate", VERSION})
+# The only task-mode/target mapping for the v4.1.x route. Legacy v4 is frozen.
+TASK_MODES = {
+    "clause_design": {"review_target": "textual_pre_review", "document_stages": ["clause_pre_review"], "text_exclusions_allowed": True},
+    "text_response_comparison": {"review_target": "document_response", "document_stages": ["document_response"], "text_exclusions_allowed": True},
+    "actual_submission_check": {"review_target": "document_completeness", "document_stages": ["document_completeness"], "text_exclusions_allowed": False},
+    "actual_conduct_check": {"review_target": "actual_conduct", "document_stages": ["performance_verification", "actual_conduct"], "text_exclusions_allowed": False},
+}
 DEPENDENCIES = {
     "submission_package_completeness": ["input_evidence_missing", "required_document_missing"],
     "authenticity": ["authenticity_unverified"],
@@ -29,10 +37,12 @@ def field(type_, description, enum=None, optional=False):
 
 SCHEMA = {
     "version": VERSION,
+    "task_modes": TASK_MODES,
+    "text_excludable_dependencies": ["submission_package_completeness", "authenticity", "actual_performance"],
     "dependency_kind_pairs": DEPENDENCIES,
     "basis": {
         "review_question": field("text", "原样复制已锁定问题。"),
-        "review_target": field("text", "对应锁定任务模式。", ["textual_pre_review", "document_response", "document_completeness", "actual_conduct"]),
+        "review_target": field("text", "原样复制调用端 review_task_contract_v41.expected_review_target；必须与task_modes中锁定review_mode的映射一致，不凭语义自行选择。", list(dict.fromkeys(rule["review_target"] for rule in TASK_MODES.values()))),
         "answerability": field("text", "关系未解决必须用 scope_unresolved，而非法律 U。", ["sufficient", "decisive_gap", "scope_unresolved"]),
         "task_scope_sha256": field("text", "原样复制 review_task_contract_v41.input_scope_sha256。"),
         "completed_checks": field("checks", "已完成观察/法规比对；U 可为空，不伪造完成项。"),
@@ -70,6 +80,29 @@ SCHEMA = {
     "gate_owned_output_groups": ["blocking_gap", "out_of_scope_item", "scope_review_item"],
     "mechanical_aliases": {"check": {"check_name": "check"}},
 }
+
+
+def expected_review_target(mode):
+    """Unknown/malformed modes remain invalid; never infer a default target."""
+    rule = SCHEMA["task_modes"].get(mode) if isinstance(mode, str) else None
+    return rule["review_target"] if rule else None
+
+
+def is_protocol_handoff(handoff):
+    """Display compatibility only; does not admit or upgrade historical output."""
+    version = handoff.get("version") if isinstance(handoff, dict) else None
+    return isinstance(version, str) and version in HANDOFF_PROTOCOL_VERSIONS
+
+
+def is_text_mode(mode):
+    rule = SCHEMA["task_modes"].get(mode) if isinstance(mode, str) else None
+    return bool(rule and rule["text_exclusions_allowed"])
+
+
+def render_task_mapping():
+    lines = ["| scope_spec.review_mode | decision_basis.review_target（必须精确一致） |", "|---|---|"]
+    lines += ["| " + mode + " | " + rule["review_target"] + " |" for mode, rule in SCHEMA["task_modes"].items()]
+    return "\n".join(lines)
 
 
 def _validate_record(obj, record, path):

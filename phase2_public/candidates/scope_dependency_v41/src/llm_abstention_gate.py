@@ -2100,7 +2100,8 @@ def _build_review_table(response: dict) -> list[dict]:
         )
     for finding, row in zip((f for f in response.get("findings", []) if isinstance(f, dict)), table):
         handoff = finding.get("review_handoff") or {}
-        if handoff.get("version") == "scope-dependency-v4.1-candidate" and not handoff.get("valid_legal_verdict_available"):
+        from scope_dependency_v41_schema import is_protocol_handoff
+        if is_protocol_handoff(handoff) and not handoff.get("valid_legal_verdict_available"):
             state = handoff.get("processing_status", "schema_blocked")
             row["test_result"] = state
             row["compatibility_conclusion_not_a_legal_verdict"] = deepcopy(row["conclusion"])

@@ -1,6 +1,15 @@
-# Phase 2 scope/dependency v4.1 — isolated protocol-alignment candidate
+# Phase 2 scope/dependency v4.1.1 — isolated task-mode mapping repair
 
 Candidate only; no production promotion and no new online observations.
+This revision moves task modes, expected response targets, allowed document
+stages and text-exclusion eligibility into the same executable schema. The
+generated prompt includes every mode/target pair; the pre-inference contract
+contains `expected_review_target`, which is included in its digest and checked
+against the schema by the gate. A valid but wrong target stays blocked, even
+with mechanical normalization enabled. Historical responses are not repaired.
+The import path/flag remains `scope_dependency_v41` for compatibility; the
+contract version and digest identify v4.1.1. The separate v4 route is unchanged.
+See `docs/CHANGELOG_SCOPE_PROTOCOL_V411.md` for scope and validation boundaries.
 The executable schema in `src/scope_dependency_v41_schema.py` is the single
 source for required fields, enum values, dependency/kind pairs, generated prompt
 instructions, and structural validation. It is a small documented schema

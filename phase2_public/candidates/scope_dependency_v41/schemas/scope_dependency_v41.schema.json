@@ -31,7 +31,7 @@
       "type": "text"
     },
     "review_target": {
-      "description": "对应锁定任务模式。",
+      "description": "原样复制调用端 review_task_contract_v41.expected_review_target；必须与task_modes中锁定review_mode的映射一致，不凭语义自行选择。",
       "enum": [
         "textual_pre_review",
         "document_response",
@@ -242,5 +242,41 @@
       "check_name": "check"
     }
   },
-  "version": "scope-dependency-v4.1-candidate"
+  "task_modes": {
+    "actual_conduct_check": {
+      "document_stages": [
+        "performance_verification",
+        "actual_conduct"
+      ],
+      "review_target": "actual_conduct",
+      "text_exclusions_allowed": false
+    },
+    "actual_submission_check": {
+      "document_stages": [
+        "document_completeness"
+      ],
+      "review_target": "document_completeness",
+      "text_exclusions_allowed": false
+    },
+    "clause_design": {
+      "document_stages": [
+        "clause_pre_review"
+      ],
+      "review_target": "textual_pre_review",
+      "text_exclusions_allowed": true
+    },
+    "text_response_comparison": {
+      "document_stages": [
+        "document_response"
+      ],
+      "review_target": "document_response",
+      "text_exclusions_allowed": true
+    }
+  },
+  "text_excludable_dependencies": [
+    "submission_package_completeness",
+    "authenticity",
+    "actual_performance"
+  ],
+  "version": "scope-dependency-v4.1.1-candidate"
 }

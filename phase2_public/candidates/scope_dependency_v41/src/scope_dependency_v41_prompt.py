@@ -1,17 +1,20 @@
 """Generated field/enum instructions; no second handwritten allowed-value list."""
 import json
 from scope_citation_v3_prompt import build_prompt as legacy_prompt
-from scope_dependency_v41_schema import SCHEMA, render_schema
+from scope_dependency_v41_schema import SCHEMA, render_schema, render_task_mapping, expected_review_target
 
 POLICY = """
 
-## 范围依赖 v4.1 候选：完整替换 decision_basis 协议
+## 范围依赖 v4.1.1 候选：完整替换 decision_basis 协议
 以下 schema 是本次 decision_basis 的唯一字段/类型/枚举规范，替代前文该对象的
 旧版结构；其他外层输出字段、法源准入、地域/时效、引用及人工复核要求保持有效。
 不得输出 schema 外字段。所有 required=true 字段必须填写，无法完成检查时不编造
 completed_check；check 名称与 comparison 均必填，不能用一个字段替代另一个。
 只读取运行端 review_task_contract_v41.scope_spec，不自行扩大或缩小任务。
 把 input_scope_sha256 原样复制到 task_scope_sha256。
+review_target 必须原样复制调用端 expected_review_target；以下映射由同一schema生成。
+不得因两种任务都属于“文字审查”而自行选择另一个合法枚举。若调用端预期值与
+映射不一致，属于输入协议错误，不补写法律结论。gate仍校验，不自动改写输出。
 
 先判定要求是否在当前项目/子问题实际生效，再判断其数值、年份、数量是否缺失。
 模板有某栏不等于强制提交；有两个措辞不等于已证实冲突。缺少实际真实性验证、
@@ -48,7 +51,7 @@ def examples():
              "document_locator": "SYN-p001-b001", "legal_chunk_ids": ["SYN-law-1"],
              "claim_ids": ["C1"], "comparison": "合成情景中已给文字回应已给要求；不证明真实递交或法律正确。"}
     common = {"review_question": "合成问题：承诺是否回应文字要求？",
-              "review_target": "document_response", "answerability": "sufficient",
+              "review_target": expected_review_target("text_response_comparison"), "answerability": "sufficient",
               "task_scope_sha256": "COPY_RUNTIME_HASH_NOT_THIS_PLACEHOLDER",
               "completed_checks": [check], "bounded_conclusion": "仅限合成已给文字比对，不认证实际提交。",
               "gaps": [{"gap_id": "G1", "kind": "input_evidence_missing",
@@ -74,7 +77,7 @@ def examples():
 
 
 def build_addendum():
-    return (POLICY + "\n" + render_schema() +
+    return (POLICY + "\n" + render_task_mapping() + "\n\n" + render_schema() +
             "\n以下仅为协议合成示例，法条/定位/哈希占位符不可复制到真实输出；非法律结论：\n" +
             json.dumps(examples(), ensure_ascii=False, indent=2))
 

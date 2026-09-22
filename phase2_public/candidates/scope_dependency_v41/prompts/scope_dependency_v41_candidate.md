@@ -1,10 +1,13 @@
-## 范围依赖 v4.1 候选：完整替换 decision_basis 协议
+## 范围依赖 v4.1.1 候选：完整替换 decision_basis 协议
 以下 schema 是本次 decision_basis 的唯一字段/类型/枚举规范，替代前文该对象的
 旧版结构；其他外层输出字段、法源准入、地域/时效、引用及人工复核要求保持有效。
 不得输出 schema 外字段。所有 required=true 字段必须填写，无法完成检查时不编造
 completed_check；check 名称与 comparison 均必填，不能用一个字段替代另一个。
 只读取运行端 review_task_contract_v41.scope_spec，不自行扩大或缩小任务。
 把 input_scope_sha256 原样复制到 task_scope_sha256。
+review_target 必须原样复制调用端 expected_review_target；以下映射由同一schema生成。
+不得因两种任务都属于“文字审查”而自行选择另一个合法枚举。若调用端预期值与
+映射不一致，属于输入协议错误，不补写法律结论。gate仍校验，不自动改写输出。
 
 先判定要求是否在当前项目/子问题实际生效，再判断其数值、年份、数量是否缺失。
 模板有某栏不等于强制提交；有两个措辞不等于已证实冲突。缺少实际真实性验证、
@@ -30,6 +33,13 @@ legal_comparison 绑定准入法条与所支持的当前子结论，说明适用
 范围外事项仍可见，不表示已经满足。整体仍需要人工二次审核。
 
 以下是机器可读字段说明（自同一 schema 自动生成）：
+
+| scope_spec.review_mode | decision_basis.review_target（必须精确一致） |
+|---|---|
+| clause_design | textual_pre_review |
+| text_response_comparison | document_response |
+| actual_submission_check | document_completeness |
+| actual_conduct_check | actual_conduct |
 
 {
   "basis": {
@@ -64,7 +74,7 @@ legal_comparison 绑定准入法条与所支持的当前子结论，说明适用
       "type": "text"
     },
     "review_target": {
-      "description": "对应锁定任务模式。",
+      "description": "原样复制调用端 review_task_contract_v41.expected_review_target；必须与task_modes中锁定review_mode的映射一致，不凭语义自行选择。",
       "enum": [
         "textual_pre_review",
         "document_response",
@@ -275,7 +285,43 @@ legal_comparison 绑定准入法条与所支持的当前子结论，说明适用
       "check_name": "check"
     }
   },
-  "version": "scope-dependency-v4.1-candidate"
+  "task_modes": {
+    "actual_conduct_check": {
+      "document_stages": [
+        "performance_verification",
+        "actual_conduct"
+      ],
+      "review_target": "actual_conduct",
+      "text_exclusions_allowed": false
+    },
+    "actual_submission_check": {
+      "document_stages": [
+        "document_completeness"
+      ],
+      "review_target": "document_completeness",
+      "text_exclusions_allowed": false
+    },
+    "clause_design": {
+      "document_stages": [
+        "clause_pre_review"
+      ],
+      "review_target": "textual_pre_review",
+      "text_exclusions_allowed": true
+    },
+    "text_response_comparison": {
+      "document_stages": [
+        "document_response"
+      ],
+      "review_target": "document_response",
+      "text_exclusions_allowed": true
+    }
+  },
+  "text_excludable_dependencies": [
+    "submission_package_completeness",
+    "authenticity",
+    "actual_performance"
+  ],
+  "version": "scope-dependency-v4.1.1-candidate"
 }
 以下仅为协议合成示例，法条/定位/哈希占位符不可复制到真实输出；非法律结论：
 {
