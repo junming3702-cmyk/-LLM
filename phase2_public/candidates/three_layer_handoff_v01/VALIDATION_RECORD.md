@@ -1,5 +1,9 @@
 # Offline validation record
 
+This document preserves the initial offline sequence. A separately authorized
+online follow-up is described at the end; initial "no calls" statements refer
+only to the corresponding offline runs, not all subsequent development.
+
 ## Material Passport
 
 - Origin Skill / Mode: academic-research-suite / experiment-agent / run.
@@ -83,6 +87,30 @@ erasing its failed attempt.
 
 Gate.py, spec.py, generated prompt/spec files, the frozen v4.1.x package,
 historical model responses, reference labels and expert workbooks were not edited.
+
+## Authorized bounded online follow-up (2026-09-23)
+
+- New suite 06: 46 methods, 134 recorded protocol fixture executions, no
+  failures/errors/network attempts/unexpected complete releases.
+- Five separate client/adapter tests passed: valid input contexts, no answer
+  keys in requests, unknown applicability retained, offline preparation/refusal
+  to overwrite, and snapshot-versus-original provenance with unknown law status.
+- Frozen regression 04: 328 methods, no failures/errors/skips; frozen code hashes
+  preserved. These counts do not represent independent legal cases.
+- Eight fictional scenarios were called once each under frozen requests. All
+  eight final responses had finish_reason=stop, raw structural and full protocol
+  conformance, and the locally specified claim-state/finding outcomes. No
+  mechanical normalization was needed. Expected outcomes were not sent.
+- These include partial completion, missing rule, unknown applicability,
+  unreadable material, and incomplete actual-submission input. No real laws or
+  private source text are distributed in this public record.
+- Optional private development diagnostics and their failures are retained in
+  the local research record; they are not treated as independent holdout accuracy.
+- The offline Excel bridge can also review online records without new inference.
+  The exporter replays the gate from exact raw content/context and requires full
+  result equality. An exported workbook does not constitute semantic approval.
+- No production switch, historical response backfill, U/N/R migration or new
+  expert-score claim was performed. Further full-batch tests were not initiated.
 The final XLSX is only an export/compatibility demonstration using synthetic
 records. No new legal accuracy, agreement, retrieval or handoff-effectiveness
 metric is computed. Production integration and online validation remain separate.

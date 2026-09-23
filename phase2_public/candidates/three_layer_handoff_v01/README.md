@@ -2,9 +2,10 @@
 
 ## Status and approval
 
-The user approved the design on 2026-09-23. This package implements an isolated
-offline candidate. It is **not production-enabled**, not a new LLM experiment,
-and not a replacement for the frozen v4.1.x package.
+The user approved the design on 2026-09-23 and subsequently authorized bounded
+online validation. This package remains an isolated candidate. It is **not
+production-enabled** and not a replacement for the frozen v4.1.x package.
+The initial offline results and later online pilot are separate evidence records.
 
 Design: ../../designs/three_layer_handoff_v01/PROTOCOL_CANDIDATE.md
 
@@ -26,7 +27,8 @@ The design-version identifier is not a runtime protocol identifier.
 - Shared JSON/Markdown/typed Excel-column projection, provenance-checked new XLSX
   export and exact readback; a legacy-output barrier.
   No U/N/R projection is provided.
-- Offline synthetic fixtures only; no external provider client or credential access.
+- The original offline suite uses synthetic fixtures only and never accesses keys.
+  A separate opt-in `online_validation.py` supports a locked, bounded provider pilot.
 
 Python standard library only for this new suite. The package also reads the
 unchanged sibling scope_dependency_v41/src/question_scope_signals.py helper.
@@ -163,5 +165,38 @@ Future integration must keep:
 - explicit new-protocol handling in all UI/export/statistical consumers;
 - no historical response backfill and no automatic U-to-N migration.
 
-Production promotion, LLM generation tests, historical rescoring, input/context
-changes and activation of other candidates remain separate approval steps.
+Production promotion, historical rescoring, further input/context changes and
+activation of other candidates remain separate decisions. The specifically
+authorized online pilot does not imply approval for a full historical rerun.
+
+## Optional controlled online validation
+
+The client requires `requests` and `python-dotenv` in the selected environment.
+It uses the official DeepSeek endpoint only, one attempt per fixed ID, no
+automatic retries, and final `content` only. Raw provider bytes stay private;
+reasoning-channel presence/length are diagnostic, never a substitute final answer.
+
+    python online_validation.py prepare --output /private/new-pilot-directory
+    python online_validation.py run --output /private/new-pilot-directory --env-file /private/credentials.env
+
+Preparation makes eight fictional protocol tasks, freezes request/code hashes,
+and stores local expected states OUTSIDE model messages. It does not contact a
+provider. Never place credentials, requests, responses or review workbooks in
+the public repository. A prepare directory cannot be overwritten; run cannot
+silently resume an already-started attempt.
+
+An optional `--u12-root` adapter is for the project's already-authorized private
+development snapshots, not arbitrary raw-file upload. It preserves unknown law
+applicability/time and uses explicitly labelled INPUT-SNAPSHOT-ONLY locators,
+not invented original PDF pages. Optional repetitions require the pre-locked
+synthetic progression criterion. This is not an independent legal evaluation.
+
+Requested model: deepseek-v4-flash; thinking enabled; effort low; max_tokens 16384.
+The returned model identity is logged separately. Temperature 0.1 is recorded
+as a request value; current provider documentation says it is ignored with
+thinking enabled. No sampling-control efficacy is inferred from that setting.
+
+The eight fictional live checks passed in the authorized 2026-09-23 pilot with
+no mechanical normalization. This establishes only behaviour on these developer
+fixtures, not legal accuracy or expert handoff effectiveness. Private real-input
+results remain separate. Gate/spec/generated protocol files were not changed.
