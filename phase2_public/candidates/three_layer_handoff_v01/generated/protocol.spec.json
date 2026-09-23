@@ -1,0 +1,553 @@
+{
+  "version": "scope-completion-handoff-v0.1-candidate",
+  "schema_dialect": "restricted-record-schema-v1",
+  "task_modes": {
+    "clause_design": {
+      "target": "textual_pre_review",
+      "stages": [
+        "clause_pre_review"
+      ],
+      "text_exclusions": true
+    },
+    "text_response_comparison": {
+      "target": "document_response",
+      "stages": [
+        "document_response"
+      ],
+      "text_exclusions": true
+    },
+    "actual_submission_check": {
+      "target": "document_completeness",
+      "stages": [
+        "document_completeness"
+      ],
+      "text_exclusions": false
+    },
+    "actual_conduct_check": {
+      "target": "actual_conduct",
+      "stages": [
+        "performance_verification",
+        "actual_conduct"
+      ],
+      "text_exclusions": false
+    }
+  },
+  "dependency_kind_pairs": {
+    "submission_package_completeness": [
+      "input_evidence_missing",
+      "required_document_missing"
+    ],
+    "authenticity": [
+      "authenticity_unverified"
+    ],
+    "actual_performance": [
+      "future_performance_unverified"
+    ],
+    "current_clause_context": [
+      "input_evidence_missing",
+      "required_document_missing"
+    ],
+    "applicable_rule": [
+      "key_legal_source_missing"
+    ],
+    "regulatory_applicability": [
+      "decisive_applicability_missing"
+    ],
+    "comparison_operand": [
+      "comparison_value_missing"
+    ],
+    "readability": [
+      "unreadable_evidence"
+    ],
+    "other_undetermined": [
+      "material_type_undetermined"
+    ]
+  },
+  "excludable": [
+    "submission_package_completeness",
+    "authenticity",
+    "actual_performance"
+  ],
+  "records": {
+    "response": {
+      "protocol_version": {
+        "type": "text",
+        "required": true,
+        "description": "协议版本精确一致。",
+        "enum": [
+          "scope-completion-handoff-v0.1-candidate"
+        ]
+      },
+      "task_scope_sha256": {
+        "type": "text",
+        "required": true,
+        "description": "原样复制锁定任务hash。"
+      },
+      "input_sha256": {
+        "type": "text",
+        "required": true,
+        "description": "原样复制锁定输入hash。"
+      },
+      "review_question": {
+        "type": "text",
+        "required": true,
+        "description": "原样复制锁定问题。"
+      },
+      "review_target": {
+        "type": "text",
+        "required": true,
+        "description": "由锁定任务模式确定。",
+        "enum": [
+          "textual_pre_review",
+          "document_response",
+          "document_completeness",
+          "actual_conduct"
+        ]
+      },
+      "claim_assessments": {
+        "type": "claim[]",
+        "required": true,
+        "description": "每个必审子结论恰好一次。"
+      },
+      "completed_checks": {
+        "type": "check[]",
+        "required": true,
+        "description": "明确已做观察/法律比对，不补写未做工作。"
+      },
+      "gaps": {
+        "type": "gap[]",
+        "required": true,
+        "description": "一种材料一个事项，关系与分组分开。"
+      }
+    },
+    "claim": {
+      "claim_id": {
+        "type": "text",
+        "required": true,
+        "description": "锁定子结论ID。"
+      },
+      "assessment_state": {
+        "type": "text",
+        "required": true,
+        "description": "逐项状态，不自行填整体完成度。",
+        "enum": [
+          "assessed",
+          "blocked_by_decisive_gap",
+          "relation_unresolved",
+          "not_assessed"
+        ]
+      },
+      "finding": {
+        "type": "nullable_text",
+        "required": true,
+        "description": "未完成时为null。",
+        "enum": [
+          "supported_risk_candidate",
+          "no_supported_issue",
+          "requirement_not_applicable",
+          null
+        ]
+      },
+      "check_ids": {
+        "type": "strings",
+        "required": true,
+        "description": "对应法律检查ID。"
+      },
+      "observation_ids": {
+        "type": "strings",
+        "required": true,
+        "description": "观察ID，不构成法律完成。"
+      },
+      "gap_ids": {
+        "type": "strings",
+        "required": true,
+        "description": "与受影响缺口反向关系一致。"
+      },
+      "rationale": {
+        "type": "text",
+        "required": true,
+        "description": "有界结论或具体未完成原因。"
+      }
+    },
+    "check": {
+      "check_id": {
+        "type": "text",
+        "required": true,
+        "description": "唯一检查ID。"
+      },
+      "check_kind": {
+        "type": "text",
+        "required": true,
+        "description": "观察不能独立支撑法律结论。",
+        "enum": [
+          "text_observation",
+          "legal_comparison"
+        ]
+      },
+      "check": {
+        "type": "text",
+        "required": true,
+        "description": "具体检查名称。"
+      },
+      "document_evidence_refs": {
+        "type": "strings",
+        "required": true,
+        "description": "至少一个给定证据ID。"
+      },
+      "legal_chunk_ids": {
+        "type": "strings",
+        "required": true,
+        "description": "法律检查至少一个准入法条；观察为空。"
+      },
+      "claim_ids": {
+        "type": "strings",
+        "required": true,
+        "description": "法律检查恰好一个子结论；观察为空。"
+      },
+      "comparison": {
+        "type": "text",
+        "required": true,
+        "description": "原文—要求—相同/差异—边界；不只报法条名称。"
+      }
+    },
+    "gap": {
+      "gap_id": {
+        "type": "text",
+        "required": true,
+        "description": "唯一缺口ID。"
+      },
+      "kind": {
+        "type": "text",
+        "required": true,
+        "description": "材料状态，不以范围外作为材料类型。",
+        "enum": [
+          "authenticity_unverified",
+          "comparison_value_missing",
+          "decisive_applicability_missing",
+          "future_performance_unverified",
+          "input_evidence_missing",
+          "key_legal_source_missing",
+          "material_type_undetermined",
+          "required_document_missing",
+          "unreadable_evidence"
+        ]
+      },
+      "dependency_key": {
+        "type": "text",
+        "required": true,
+        "description": "单一依赖类型。",
+        "enum": [
+          "submission_package_completeness",
+          "authenticity",
+          "actual_performance",
+          "current_clause_context",
+          "applicable_rule",
+          "regulatory_applicability",
+          "comparison_operand",
+          "readability",
+          "other_undetermined"
+        ]
+      },
+      "detail": {
+        "type": "text",
+        "required": true,
+        "description": "只写一种缺失材料。"
+      },
+      "task_relation": {
+        "type": "text",
+        "required": true,
+        "description": "为何与锁定任务有关。",
+        "enum": [
+          "decisive_for_claim",
+          "outside_locked_scope",
+          "undetermined"
+        ]
+      },
+      "affected_claim_ids": {
+        "type": "strings",
+        "required": true,
+        "description": "受影响的锁定子结论。"
+      },
+      "reason": {
+        "type": "text",
+        "required": true,
+        "description": "材料与本任务的具体关系。"
+      },
+      "counterfactual_impact": {
+        "type": "text",
+        "required": true,
+        "description": "具体哪一步因缺失无法完成，或为何不影响当前问题。"
+      },
+      "dependency_trigger": {
+        "type": "text",
+        "required": true,
+        "description": "依赖由何触发。",
+        "enum": [
+          "explicit_scope_exclusion",
+          "generic_unverified_possibility",
+          "locked_requirement",
+          "observed_context_conflict",
+          "undetermined"
+        ]
+      },
+      "trigger_refs": {
+        "type": "ref[]",
+        "required": true,
+        "description": "显式check或document_evidence引用；不猜测引用。"
+      },
+      "next_step": {
+        "type": "text",
+        "required": true,
+        "description": "人工可执行的补查建议。"
+      }
+    },
+    "ref": {
+      "type": {
+        "type": "text",
+        "required": true,
+        "description": "显式引用类型。",
+        "enum": [
+          "check",
+          "document_evidence"
+        ]
+      },
+      "id": {
+        "type": "text",
+        "required": true,
+        "description": "已存在ID；不得引用gap或递归引用。"
+      }
+    }
+  },
+  "claim_rules": {
+    "assessed": {
+      "finding": "required",
+      "requires_check": true,
+      "requires_relation": null,
+      "forbids_relations": [
+        "decisive_for_claim",
+        "undetermined"
+      ]
+    },
+    "blocked_by_decisive_gap": {
+      "finding": "null",
+      "requires_check": false,
+      "requires_relation": "decisive_for_claim",
+      "forbids_relations": [
+        "undetermined"
+      ]
+    },
+    "relation_unresolved": {
+      "finding": "null",
+      "requires_check": false,
+      "requires_relation": "undetermined",
+      "forbids_relations": []
+    },
+    "not_assessed": {
+      "finding": "null",
+      "requires_check": false,
+      "requires_relation": null,
+      "forbids_relations": [
+        "decisive_for_claim",
+        "undetermined"
+      ]
+    }
+  },
+  "relation_rules": {
+    "decisive_for_claim": {
+      "affected": "nonempty",
+      "declared_dependency": true,
+      "triggers": [
+        "locked_requirement",
+        "observed_context_conflict"
+      ],
+      "group": "blocking_gap"
+    },
+    "outside_locked_scope": {
+      "affected": "empty",
+      "declared_dependency": false,
+      "triggers": [
+        "explicit_scope_exclusion"
+      ],
+      "group": "out_of_scope_item"
+    },
+    "undetermined": {
+      "affected": "nonempty",
+      "declared_dependency": false,
+      "triggers": [
+        "locked_requirement",
+        "observed_context_conflict",
+        "generic_unverified_possibility",
+        "undetermined"
+      ],
+      "group": "scope_review_item"
+    }
+  },
+  "completion_rules": [
+    [
+      "all_assessed",
+      "complete"
+    ],
+    [
+      "some_assessed",
+      "partial"
+    ],
+    [
+      "otherwise",
+      "none_completed"
+    ]
+  ],
+  "handoff_rules": [
+    [
+      "technical_failure",
+      "unavailable"
+    ],
+    [
+      "protocol_hold",
+      "needs_protocol_repair"
+    ],
+    [
+      "has_unresolved",
+      "needs_scope_clarification"
+    ],
+    [
+      "all_assessed",
+      "ready_for_complete_review"
+    ],
+    [
+      "has_actionable_info",
+      "ready_for_bounded_review"
+    ],
+    [
+      "otherwise",
+      "not_ready"
+    ]
+  ],
+  "mechanical_aliases": {
+    "check": {
+      "check_name": "check"
+    }
+  },
+  "material_patterns": {
+    "submission_package_completeness": "(?:递交|提交|投标)(?:文件)?包.{0,16}(?:完整|齐全)|(?:完整|最终)(?:的)?(?:递交|提交)(?:文件)?包|签字.{0,6}盖章|签署页|完整承诺书",
+    "authenticity": "真伪|真实性|真实任职|实际任职",
+    "actual_performance": "实际履行|后续履行|实际到岗|履约"
+  },
+  "current_material_pattern": "澄清|补遗|更正|例外|优先|效力|适用前提|起算|关键数值|条款.{0,8}上下文|无法辨认|乱码|不可读|承诺文本.{0,8}(?:缺失|未提供)|(?:缺失|未提供).{0,8}承诺文本",
+  "rules": {
+    "S01": {
+      "stage": "structure",
+      "fields": [
+        "*"
+      ],
+      "guards": [
+        "G07",
+        "G09",
+        "G13",
+        "G21",
+        "G22"
+      ],
+      "description": "必填、类型、枚举、唯一ID、未知字段与机械规范化边界。"
+    },
+    "B01": {
+      "stage": "binding",
+      "fields": [
+        "task_scope_sha256",
+        "input_sha256",
+        "review_question",
+        "review_target"
+      ],
+      "guards": [
+        "G19",
+        "G23",
+        "G27"
+      ],
+      "description": "任务、模式、目标、输入及来源绑定必须有效；不能由响应改范围。"
+    },
+    "E01": {
+      "stage": "evidence",
+      "fields": [
+        "completed_checks",
+        "trigger_refs"
+      ],
+      "guards": [
+        "G03",
+        "G17",
+        "G18",
+        "G19",
+        "G28"
+      ],
+      "description": "证据精确回连，法条准入与适用性由可信上游确认，引用无循环。"
+    },
+    "R01": {
+      "stage": "relation",
+      "fields": [
+        "gaps"
+      ],
+      "guards": [
+        "G01",
+        "G02",
+        "G03",
+        "G13"
+      ],
+      "description": "kind/依赖、关系/触发、受影响子结论及冲突双侧指针必须一致。"
+    },
+    "R02": {
+      "stage": "scope",
+      "fields": [
+        "gaps",
+        "task"
+      ],
+      "guards": [
+        "G10",
+        "G11",
+        "G14",
+        "G23",
+        "G28"
+      ],
+      "description": "仅事前排除且不被必审项依赖的可识别纯材料可排除；已知混合事项拒绝。"
+    },
+    "R03": {
+      "stage": "claim",
+      "fields": [
+        "claim_assessments",
+        "completed_checks",
+        "gaps"
+      ],
+      "guards": [
+        "G04",
+        "G05",
+        "G06",
+        "G07",
+        "G08",
+        "G09",
+        "G12",
+        "G15",
+        "G16",
+        "G18",
+        "G24",
+        "G25"
+      ],
+      "description": "逐项精确覆盖、check/gap双向关联、状态/判断/关系按同一相容表检查。"
+    },
+    "D01": {
+      "stage": "derivation",
+      "fields": [
+        "claim_assessments",
+        "gaps"
+      ],
+      "guards": [
+        "G05",
+        "G06",
+        "G08",
+        "G15",
+        "G16",
+        "G20",
+        "G24",
+        "G25",
+        "G26"
+      ],
+      "description": "固定优先级派生；处理错误不给法律U，ready不等于有效交接。"
+    }
+  },
+  "semantic_correctness_verified": false
+}
