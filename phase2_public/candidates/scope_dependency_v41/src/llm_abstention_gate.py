@@ -2107,6 +2107,11 @@ def _build_review_table(response: dict) -> list[dict]:
             row["compatibility_conclusion_not_a_legal_verdict"] = deepcopy(row["conclusion"])
             row["conclusion"] = {"conclusion_type": state, "text": "当前为结构/定位/范围复核阻断，不作为有效法律U、N或R；原始判断另存供复核。"}
             row["evidence_boundary"] = str(row.get("evidence_boundary", "")) + " 当前无可交付法律判断。"
+            presentation = finding.get("processing_presentation") or {}
+            if presentation:
+                row["compatibility_risk_category_not_a_legal_assessment"] = row["risk_category"]
+                row["risk_category"] = presentation["display_risk_category"]
+                row["conclusion"]["text"] = finding.get("reasoning_conclusion", "")
     return table
 
 
@@ -2419,11 +2424,13 @@ def _final_consistency_pass(
         _set_field(finding, "human_review_status", "review_required", actions, path)
 
 
-def _apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = False, external_scope_bridge: bool = False, source_role_guard: bool = False, external_auto_candidates: bool = False, nu_boundary: bool = False, task_contract_v2: bool = False, scope_dependency_v4: dict | None = None, scope_dependency_v41: dict | None = None, normalize_protocol_v41: bool = False) -> dict:
+def _apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = False, external_scope_bridge: bool = False, source_role_guard: bool = False, external_auto_candidates: bool = False, nu_boundary: bool = False, task_contract_v2: bool = False, scope_dependency_v4: dict | None = None, scope_dependency_v41: dict | None = None, normalize_protocol_v41: bool = False, material_aliases_v412: bool = False, processing_presentation_v412: bool = False) -> dict:
     """Return raw-preserving gate result with a safe final response."""
 
     if scope_dependency_v4 is not None and scope_dependency_v41 is not None:
         raise ValueError("Select exactly one scope-dependency candidate")
+    if (material_aliases_v412 or processing_presentation_v412) and scope_dependency_v41 is None:
+        raise ValueError("v4.1.2 policies require an explicit frozen v4.1 scope")
     v41_original = deepcopy(raw_response)
     protocol_diagnostics = None
     if scope_dependency_v41 is not None:
@@ -2586,7 +2593,7 @@ def _apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = 
             if scope_dependency_v41 is not None:
                 from scope_dependency_v41 import audit_basis_v41
                 def audit_basis(rt, f, usable):
-                    return audit_basis_v41(rt, f, usable, scope_dependency_v41)
+                    return audit_basis_v41(rt, f, usable, scope_dependency_v41, material_aliases_v412=material_aliases_v412)
             elif scope_dependency_v4 is not None:
                 from scope_dependency_v4 import audit_basis_v4
                 def audit_basis(rt, f, usable):
@@ -3041,6 +3048,14 @@ def _apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = 
                 recommendation["review_highlight"] = "red"
                 recommendation["recommended_handling"] = f"⚠️ possible_over_alert：{reason} {handling}".strip()
         _set_field(finding, "assistant_recommendation", recommendation, actions, path)
+        if processing_presentation_v412:
+            from scope_routing_v412 import processing_presentation
+            updates = processing_presentation(finding)
+            if updates:
+                finding["gate_before_processing_presentation"] = {
+                    key: deepcopy(finding.get(key)) for key in updates if key != "processing_presentation"}
+                for key, value in updates.items():
+                    _set_field(finding, key, value, actions, path)
         processing_label = _default_processing_label(finding)
         _set_field(finding, "review_processing_label", processing_label, actions, path)
         if task_contract_v2:
@@ -3072,6 +3087,18 @@ def _apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = 
         actions.append("created root.project_summary")
     _set_field(summary, "findings_count", len(response["findings"]), actions, "project_summary")
     _set_field(summary, "statement_boundary", "本结果仅辅助人工审查，不是最终法律结论", actions, "project_summary")
+    if processing_presentation_v412:
+        # Scope/technical holds must not re-enter a legal summary via legacy U.
+        response["gate_before_processing_project_summary"] = deepcopy(summary)
+        valid_findings = [f for f in response["findings"] if (f.get("nu_boundary_audit") or {}).get("processing_status") == "valid"]
+        summary = _rebuild_project_summary({"findings": valid_findings, "review_scope": response.get("review_scope")})
+        summary.update(findings_count=len(response["findings"]), valid_legal_verdict_count=len(valid_findings),
+                       valid_legal_verdicts=[f.get("conclusion_type") for f in valid_findings],
+                       processing_holds=[{"finding_id": f.get("finding_id"),
+                           "processing_status": (f.get("nu_boundary_audit") or {}).get("processing_status"),
+                           "reported_blocking_gaps": deepcopy((f.get("nu_boundary_audit") or {}).get("blocking_gaps", []))}
+                           for f in response["findings"] if f not in valid_findings])
+        _set_field(response, "project_summary", summary, actions, "root")
 
     audit = response.get("retrieval_audit")
     if not isinstance(audit, dict):
@@ -3151,12 +3178,13 @@ def _apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = 
     return result
 
 
-def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = False, external_scope_bridge: bool = False, source_role_guard: bool = False, external_auto_candidates: bool = False, nu_boundary: bool = False, task_contract_v2: bool = False, scope_dependency_v4: dict | None = None, scope_dependency_v41: dict | None = None, normalize_protocol_v41: bool = False) -> dict:
+def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = False, external_scope_bridge: bool = False, source_role_guard: bool = False, external_auto_candidates: bool = False, nu_boundary: bool = False, task_contract_v2: bool = False, scope_dependency_v4: dict | None = None, scope_dependency_v41: dict | None = None, normalize_protocol_v41: bool = False, material_aliases_v412: bool = False, processing_presentation_v412: bool = False) -> dict:
     """Diagnostics also cover invalid JSON/empty-result early exits."""
     options = dict(risk_binding=risk_binding, external_scope_bridge=external_scope_bridge,
                    source_role_guard=source_role_guard, external_auto_candidates=external_auto_candidates,
                    nu_boundary=nu_boundary, task_contract_v2=task_contract_v2,
-                   scope_dependency_v4=scope_dependency_v4, scope_dependency_v41=scope_dependency_v41)
+                   scope_dependency_v4=scope_dependency_v4, scope_dependency_v41=scope_dependency_v41,
+                   material_aliases_v412=material_aliases_v412, processing_presentation_v412=processing_presentation_v412)
     if scope_dependency_v41 is None:
         return _apply_gate(raw_response, runtime_input, normalize_protocol_v41=normalize_protocol_v41, **options)
     from scope_dependency_v41_schema import normalize_response

@@ -1,0 +1,25 @@
+{
+  "engine_version": "scope-routing-handoff-v4.1.2-candidate",
+  "wire_protocol": "scope-dependency-v4.1.1-candidate",
+  "parent_commit": "eee002346818bfd06076b7f8ae7e71aeb0ffe009",
+  "candidate_only": true,
+  "production_promoted": false,
+  "attempts": [
+    {"attempt": 1, "status": "environment_failure", "reason": "missing_openpyxl", "tests_executed": 0},
+    {"attempt": 2, "status": "passed", "tests_run": 328, "failures": 0, "errors": 0, "skipped": 0}
+  ],
+  "inherited_test_groups": 310,
+  "new_test_groups": 18,
+  "network_disabled": true,
+  "new_api_calls": 0,
+  "same_response_replay": {
+    "arms": ["neither", "material_recognition_only", "presentation_only", "both"],
+    "baseline_exactly_reproduced": true,
+    "presentation_does_not_change_routing_or_legal_verdicts": true,
+    "blocking_gap_control_preserved": true,
+    "source_hashes_preserved": true,
+    "real_project_inputs_and_results": "private_not_published"
+  },
+  "legal_accuracy_claimed": false,
+  "independent_validation_claimed": false
+}

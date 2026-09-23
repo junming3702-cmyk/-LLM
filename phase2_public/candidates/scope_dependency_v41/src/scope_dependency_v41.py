@@ -28,7 +28,7 @@ def build_contract(runtime, spec):
             "human_approval_inferred": False, "input_completeness_certified": False}
 
 
-def resolve_gap(gap, spec, spans, excerpt):
+def resolve_gap(gap, spec, spans, excerpt, *, material_aliases_v412=False):
     dep = gap.get("dependency_key")
     relation = gap.get("task_relation")
     affected = gap.get("affected_claim_ids")
@@ -58,6 +58,14 @@ def resolve_gap(gap, spec, spans, excerpt):
         "readability": r"无法辨认|不可读|乱码",
     }
     signalled = {k for k, pattern in signals.items() if re.search(pattern, detail)}
+    if material_aliases_v412:
+        from scope_routing_v412 import recognize_material
+        signalled, recognition, guard_reason = recognize_material(gap, signals)
+        recognition["caller_excluded_dependencies"] = deepcopy(spec.get("excluded_dependencies", []))
+        recognition["caller_review_mode"] = spec.get("review_mode")
+        result["material_recognition"] = recognition
+        if guard_reason:
+            return hold(guard_reason)
     if len(signalled) > 1 or (signalled and dep not in signalled):
         return hold("mixed_or_misclassified_material_dependency")
     trigger = gap.get("dependency_trigger")
@@ -84,7 +92,7 @@ def resolve_gap(gap, spec, spans, excerpt):
     return hold("invalid_relation")
 
 
-def audit_basis_v41(runtime, finding, usable_evidence, scope_spec):
+def audit_basis_v41(runtime, finding, usable_evidence, scope_spec, *, material_aliases_v412=False):
     from nu_boundary_policy import audit_basis
     spec = scope_spec if isinstance(scope_spec, dict) else {}
     errors = list(validate_spec(runtime, scope_spec))
@@ -132,7 +140,7 @@ def audit_basis_v41(runtime, finding, usable_evidence, scope_spec):
         for i, pointer in enumerate(gap.get("trigger_evidence") if isinstance(gap.get("trigger_evidence"), list) else []):
             if isinstance(pointer, dict):
                 trigger_errors += [str(gid) + ":trigger_" + str(i) + ":" + e for e in check_document_binding(pointer, spans, excerpt)["errors"]]
-        resolution = resolve_gap(gap, spec, spans, excerpt) if bound else {
+        resolution = resolve_gap(gap, spec, spans, excerpt, material_aliases_v412=material_aliases_v412) if bound else {
             "resolution": "scope_review_item", "reason": "unbound_scope", "gap_id": gid, "detail": gap.get("detail")}
         resolutions.append(resolution)
         if resolution["resolution"] == "scope_review_item":

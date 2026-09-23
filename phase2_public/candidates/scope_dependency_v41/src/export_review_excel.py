@@ -181,6 +181,9 @@ def flatten_record(record: dict[str, Any], *, include_handoff: bool = False) -> 
         from scope_dependency_v41_schema import is_protocol_handoff
         if is_protocol_handoff(handoff) and not handoff.get("valid_legal_verdict_available"):
             row[3] = as_text(handoff.get("processing_status")) + "（非有效法律判断；原响应保留）"
+            presentation = finding.get("processing_presentation") or {}
+            if presentation:
+                row[4] = as_text(presentation.get("display_risk_category"))
         if include_handoff:
             task = (record.get("runtime_input") or {}).get("review_task_contract_v2") or {}
             v41 = (record.get("runtime_input") or {}).get("review_task_contract_v41")

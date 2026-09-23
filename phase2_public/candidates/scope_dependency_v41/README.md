@@ -1,4 +1,27 @@
-# Phase 2 scope/dependency v4.1.1 — isolated task-mode mapping repair
+# Phase 2 scope routing / handoff v4.1.2 — isolated offline candidate
+
+This branch adds two **independent, default-off postprocessing options** to
+`apply_gate`: `material_aliases_v412=True` and
+`processing_presentation_v412=True`. Both require an explicitly supplied
+`scope_dependency_v41` specification. The wire schema, generated prompt and
+task-mode mapping remain v4.1.1. Online runners do not silently enable either
+option. Production is not promoted.
+
+The first option recognizes four finite future-performance expressions, with
+current-text, mixed-material and claim-dependency safeguards. The second fixes
+handoff wording for processing holds without changing the legal verdict or gap
+routing. It separates an unresolved task relationship from established legal
+insufficiency. Both retain the original response and an audit trail.
+
+Validation: 328 offline test methods/groups passed (310 inherited + 18 new),
+with networking disabled. An initial missing-dependency attempt and the
+successful attempt are separately recorded. A private same-response 2x2 replay
+separates recognition from presentation; this is not an accuracy study.
+See `docs/CHANGELOG_SCOPE_ROUTING_V412.md` and
+`docs/OFFLINE_VALIDATION_V412.json`. Real inputs, responses, expert data and
+credentials are intentionally excluded from this public candidate.
+
+## Preserved v4.1.1 protocol foundation
 
 Candidate only; no production promotion and no new online observations.
 This revision moves task modes, expected response targets, allowed document
