@@ -1,0 +1,4 @@
+# Optional isolated overlay for the inherited regression and read-only XLSX checks.
+# Do not install the entire bundled environment into the retrieval environment.
+openpyxl==3.1.5
+et-xmlfile==2.0.0

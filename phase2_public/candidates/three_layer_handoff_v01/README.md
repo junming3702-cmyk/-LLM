@@ -23,7 +23,8 @@ The design-version identifier is not a runtime protocol identifier.
 - Separate technical failure, protocol error, unresolved scope, unassessed work
   and declared decisive gaps.
 - Raw response preservation and separately logged mechanical normalization.
-- Shared JSON/Markdown/typed Excel-column projection; a legacy-output barrier.
+- Shared JSON/Markdown/typed Excel-column projection, provenance-checked new XLSX
+  export and exact readback; a legacy-output barrier.
   No U/N/R projection is provided.
 - Offline synthetic fixtures only; no external provider client or credential access.
 
@@ -89,14 +90,67 @@ semantic sufficiency still need human/independent evaluation.
 
 ## Validation, limitations and next boundary
 
-See VALIDATION_RECORD.md. The latest new-suite run passed 35 test methods,
-with 134 fixture executions, including 28 planned guard groups. These are
+See VALIDATION_RECORD.md. The latest new-suite run passed 46 test methods
+(35 protocol plus 11 export guards), with 134 recorded protocol fixture
+executions, including 28 planned guard groups. These are
 software cases, not independent legal examples or measures of model efficacy.
 
-New Excel support is currently a typed column projection only. Actual workbook
-writing/rendering and production-runner integration are NOT implemented.
+New Excel support writes a separate four-sheet workbook using the bundled
+Artifact Tool. Original bytes and input/result hashes accompany each export.
+Every saved result is reproduced from the exact raw response, execution metadata
+and trusted context; mismatches are rejected, never silently replaced.
+Contract/source excerpts, law text and locators are expanded only for protocol-valid
+results. Technical/protocol failures retain diagnostic rows, not purported legal
+checks. Export cannot fill missing legal judgments or map states to U/N/R.
+Production-runner integration is NOT enabled.
 Legacy workbook/verdict consumers explicitly reject this protocol.
 No existing workbook was edited by this candidate.
+
+## Reproduce the frozen legacy regression
+
+Use the existing Python environment that already contains the inherited retrieval
+dependencies. If only the Excel reader is missing, install the two pinned packages
+from offline_excel_requirements.txt into a NEW isolated dependency directory using
+pip's --target option. Do not mix the bundled native/ML libraries into that environment.
+
+    ./run_legacy_regression.ps1 -Python /path/to/existing/python.exe -DependencyDirectory /path/to/isolated-overlay -OutputDirectory /path/to/new-run
+
+The wrapper restores process environment variables afterward, enables offline HF
+flags and invokes the unchanged frozen runner. The runner disables socket connection
+functions, directs temporary files into the output directory and verifies frozen
+source hashes. It loads no API keys and makes no model requests. Its network_calls
+field is a fixed legacy field, not a counted network-attempt metric.
+The 328-method suite passed both directly and through this wrapper on 2026-09-23.
+
+## Reproduce the new workbook
+
+Use the app's dependency loader to locate the bundled Node and node_modules.
+In a separate writable runtime directory, create a node_modules junction/symlink
+to that bundled directory. Do not install packages into the repository.
+
+    python export_examples.py --output /path/to/new-examples/records.json
+    python export_review.py --input /path/to/new-examples/records.json --output /path/to/new-export --node /path/to/bundled/node --runtime /path/to/runtime-directory
+    python verify_xlsx.py --output /path/to/new-export
+
+The last command requires openpyxl for READ-ONLY independent verification, not
+authoring. Input is a list of case_id/context/result/execution envelopes. Execution
+must explicitly contain finish_reason and transport_ok. Context is the original
+trusted envelope, not reconstructed from old scores or invented locators.
+Use the Python bridge, not the presentation-only JS file, as the entry point.
+
+Sheets: three-layer review, checks/evidence, gap tasks, processing audit.
+The human conclusion and comment columns start blank. They do not automatically
+change any model status. All results still require human review. Technical nulls
+are not zeros or N. Raw and mechanically normalized conformance remain separate.
+Long cells over the Excel limit or illegal control characters are rejected rather
+than silently truncated. Leading '=' is escaped for typed literal text; export
+and an independent reader check exact values and absence of formulas.
+
+Only deliver exports with export_manifest.json AND passed xlsx_checks.json;
+independent_readback.json records the separate reader check. A failed attempt may
+retain an intermediate workbook for diagnosis and must not be treated as approved.
+The exported workbook is a review projection, not a production deployment or an
+expert-response import/scoring implementation.
 
 The counter named handoff_presentation_counts describes software routing,
 not joint handoff effectiveness. Legal accuracy, expert agreement and joint

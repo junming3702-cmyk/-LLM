@@ -6,6 +6,8 @@
 - Date: 2026-09-23.
 - Version: scope-completion-handoff-v0.1-candidate.
 - Verification Status: VERIFIED for the latest new deterministic fixture suite only.
+- Follow-up verification: frozen legacy regression and actual XLSX bridge also
+  verified offline on 2026-09-23; no substantive gate or prompt change.
 - No external LLM, retrieval, OCR, or legal-status verification calls were made.
 - Not production-enabled. Not an accuracy or human-handoff-effectiveness study.
 
@@ -39,14 +41,51 @@ Latest new-suite source-spec SHA256 (canonical JSON serialization):
 - New JSON/Markdown/typed Excel-column projections preserve the same statuses.
 - Legacy output/barrier refuses fabricated U/N/R or workbook compatibility.
 
-Not checked: actual new XLSX creation/rendering, production-runner integration,
+Not checked in the initial implementation: actual new XLSX creation/rendering, production-runner integration,
 arbitrary natural-language semantic consistency, correct legal applicability
 beyond caller metadata, LLM generation quality, independent legal truth or
 expert productivity/effectiveness.
 
-The sibling regression failed during import, not because an old test assertion
-failed. Nonetheless it is unverified in this environment and is not reported
-as passed.
+The initial sibling regression failed during import, not because an old test
+assertion failed. It was unverified at that handoff. The separately authorized
+environment repair and follow-up evidence below supersede that open item, without
+erasing its failed attempt.
+
+## Authorized follow-up: legacy environment and actual XLSX bridge
+
+- Existing project Python has sentence-transformers 3.4.1 and torch 2.5.1+cpu.
+  Only openpyxl 3.1.5 and et-xmlfile 2.0.0 were added in an isolated dependency
+  overlay, without changing the project environment or frozen source code.
+- Frozen regression 02: 328 methods/groups, 0 failures, 0 errors, 0 skipped;
+  frozen source hashes preserved. The unchanged suite includes its old XLSX test.
+- Frozen regression 03: repeat through the new reusable environment wrapper,
+  328 methods/groups, 0 failures/errors/skips; frozen source hashes preserved.
+- New suite 04 and final suite 05: 46 test methods each (35 existing + 11 export),
+  134 recorded protocol scenarios, 0 failures/errors, 0 observed socket attempts,
+  0 unexpected overall-complete releases. Export guards also exercise saved-result
+  integrity, original-versus-normalized conformance, typed nulls and all four
+  blocking guard families. Repeated executions are not independent observations.
+- XLSX attempt 01: 12 synthetic envelopes exported/read back successfully.
+- XLSX attempt 02: added literal-text guard; exact readback failed because an
+  unnecessary escape before '@' became a visible apostrophe. Attempt retained.
+- XLSX attempt 03 (final): escaping restricted to the documented leading '='
+  case. 13 synthetic envelopes produced 16 claim/diagnostic rows, 9 check rows,
+  5 gap rows and 13 processing-audit rows. Artifact Tool exact readback passed.
+- Independent openpyxl read-only verification: all 674 header/data cells matched;
+  nulls, booleans, 2 formula-like literal cells, 4 tables, C7 frozen panes, hidden
+  gridlines and 2 conditional-format ranges verified. No formula/error cells.
+  File hash unchanged after verification.
+- All four sheets rendered and visually reviewed; the literal-text and
+  mechanical-normalization rows were additionally rendered from the saved file.
+  Microsoft Excel desktop interaction was not tested.
+- The 134 recorded protocol result objects from suite 05 are exactly equal to
+  the original final suite 03 objects. Current executable hashes match suite 05.
+
+Gate.py, spec.py, generated prompt/spec files, the frozen v4.1.x package,
+historical model responses, reference labels and expert workbooks were not edited.
+The final XLSX is only an export/compatibility demonstration using synthetic
+records. No new legal accuracy, agreement, retrieval or handoff-effectiveness
+metric is computed. Production integration and online validation remain separate.
 
 ## Interpretation limits
 

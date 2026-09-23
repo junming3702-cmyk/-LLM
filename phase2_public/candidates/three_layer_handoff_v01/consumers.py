@@ -35,7 +35,7 @@ def review_rows(case_id, result):
     return rows
 
 def excel_projection(case_id, result):
-    """Typed cells for a FUTURE approved workbook adapter; not an XLSX writer."""
+    """Canonical typed projection; actual new-protocol XLSX lives in export_review.py."""
     rows = review_rows(case_id, result)
     return [COLUMNS] + [[json.dumps(row[k], ensure_ascii=False) if isinstance(row[k], list) else row[k]
                         for k in COLUMNS] for row in rows]
