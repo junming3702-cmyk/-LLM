@@ -135,6 +135,10 @@ class RankedCandidate:
         return {
             "rank_within_level_phase": rank,
             "chunk_id": row.get("chunk_id"),
+            "source_id": row.get("source_id"),
+            "file_hash": row.get("file_hash"),
+            "extraction_status": row.get("extraction_status"),
+            "extraction_method": row.get("extraction_method"),
             "law": row.get("title"),
             "article": row.get("article"),
             "source_locator": row.get("source_locator"),

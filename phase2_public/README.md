@@ -55,6 +55,8 @@ Every state retains `requires_human_second_review` as the overall delivery statu
 - `data/gold/`: the frozen 60-item synthetic development set and schemas;
 - `data/law/`: four-level and external-source manifests;
 - `data/rag/`: a public corpus sample and instructions for building a local corpus;
+- `candidates/evidence_lineage_v01/`: opt-in, offline source-to-citation
+  diagnostics and pre-inference task/evidence checks; not production-enabled;
 - `evaluation/`: benchmark summaries and the separate expert-review protocol;
 - `evaluation/reasoning/full60_one_shot_external_recheck_protocol_v1.md`: the
   active 60-item external-recheck sequence and audit contract;
