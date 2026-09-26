@@ -171,6 +171,11 @@ def build_workbook(records: Iterable[dict[str, Any]], output_path: Path) -> None
     for record in records:
         for row in flatten_record(record):
             sheet.append(row)
+            # Tender/bid text is untrusted. Explicit string typing prevents a
+            # source line beginning with '=' from becoming an Excel formula.
+            for cell in sheet[sheet.max_row]:
+                if isinstance(cell.value, str):
+                    cell.data_type = "s"
 
     header_fill = PatternFill("solid", fgColor="1F4E78")
     alert_fill = PatternFill("solid", fgColor="F4CCCC")

@@ -57,6 +57,10 @@ Every state retains `requires_human_second_review` as the overall delivery statu
 - `data/rag/`: a public corpus sample and instructions for building a local corpus;
 - `candidates/evidence_lineage_v01/`: opt-in, offline source-to-citation
   diagnostics and pre-inference task/evidence checks; not production-enabled;
+- `candidates/full_bundle_review_v01/`: isolated whole-file-package intake,
+  candidate discovery, tender-to-bid matching, legal/pair reasoning routes and
+  human-review assembly. Development-fixture checks only; not independently
+  validated or production-enabled;
 - `evaluation/`: benchmark summaries and the separate expert-review protocol;
 - `evaluation/reasoning/full60_one_shot_external_recheck_protocol_v1.md`: the
   active 60-item external-recheck sequence and audit contract;

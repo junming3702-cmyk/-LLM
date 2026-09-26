@@ -1,0 +1,24 @@
+{
+  "project_id": "SYN-EXAMPLE-ONLY",
+  "project_type": "construction_project",
+  "project_location": {
+    "province": "待人工确认",
+    "human_confirmation": "unconfirmed"
+  },
+  "documents": [
+    {
+      "document_key": "T1",
+      "role": "tender",
+      "path": "tender.pdf",
+      "declared_issued": true,
+      "source_status": "synthetic"
+    },
+    {
+      "document_key": "B1",
+      "role": "final_bid",
+      "path": "final_bid.pdf",
+      "declared_final_submitted": true,
+      "source_status": "synthetic"
+    }
+  ]
+}

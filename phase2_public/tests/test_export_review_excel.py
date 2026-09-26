@@ -10,6 +10,17 @@ from export_review_excel import HEADERS, build_workbook
 
 
 class ExportReviewExcelTests(unittest.TestCase):
+    def test_untrusted_source_text_cannot_become_formula(self) -> None:
+        record = {"issue_id": "SYN-FORMULA", "gate_result": {"status": "review_required", "response": {
+            "findings": [{"issue_id": "SYN-FORMULA", "document_excerpt": "=1+1",
+                          "conclusion_type": "not_yet_assessed", "legal_evidence": []}]}}}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "review.xlsx"
+            build_workbook([record], output)
+            cell = load_workbook(output, data_only=False)["Human review"]["C2"]
+            self.assertEqual(cell.value, "=1+1")
+            self.assertEqual(cell.data_type, "s")
+
     def test_gated_finding_is_exported_without_formula_cells(self) -> None:
         record = {
             "issue_id": "SYN-TEST-001",
