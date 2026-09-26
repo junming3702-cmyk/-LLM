@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 import sys
 import tempfile
@@ -12,10 +13,10 @@ from docx import Document
 from openpyxl import load_workbook
 from pypdf import PdfWriter
 
-from bundle_review import find_pair, pair_score, require_manifest, run
+from bundle_review import find_pair, intake_verified_pagewise_cache, pair_score, require_manifest, run
 from assemble import assemble, excel_records
 from export_review_excel import build_workbook, flatten_record
-from pair_reasoner import apply_pair_gate
+from pair_reasoner import apply_pair_gate, normalize_pair_shape, replay_stored_result
 
 
 TENDER_QUALIFICATION = "3.5.5 投标人须提供有效的建筑工程施工总承包资质证书。"
@@ -108,6 +109,51 @@ class BundleDevelopmentTest(unittest.TestCase):
                       {"quote": "提供资格证书。", "document_key": "B1", "block_id": "b"}]
         self.assertEqual(find_pair(requirement, candidates)["status"], "ambiguous_needs_human_matching")
 
+    def test_same_section_number_without_textual_alignment_cannot_pair(self) -> None:
+        requirement = {"quote": "3.2.1 投标人应按第五章工程量清单的要求填写相应表格。"}
+        unrelated = {"quote": "3.2.1 火灾报警自检功能。", "document_key": "B1", "block_id": "fire"}
+        self.assertLess(pair_score(requirement["quote"], unrelated["quote"]), 0.18)
+        self.assertEqual(find_pair(requirement, [unrelated])["status"], "not_found_in_reviewed_text")
+
+    def test_pagewise_cache_requires_exact_source_and_artifact_hashes(self) -> None:
+        source = self.root / "source.pdf"
+        writer = PdfWriter()
+        writer.add_blank_page(width=595, height=842)
+        writer.write(source)
+        file_hash = hashlib.sha256(source.read_bytes()).hexdigest()
+        blocks = self.root / "blocks.json"
+        blocks.write_text(json.dumps([{"document_id": "X", "source_sha256": file_hash,
+                                       "block_id": "X-p0001-b001", "page": 1, "type": "table",
+                                       "text": "我方承诺满足招标条件。", "native_locator_valid": True}], ensure_ascii=False), encoding="utf-8")
+        preflight = self.root / "preflight.json"
+        preflight.write_text(json.dumps({"sha256": file_hash, "enumerated_page_count": 1,
+                                         "verdict": "UNAVAILABLE", "warnings": ["xref advisory"]}), encoding="utf-8")
+        cache = {"document_alias": "X", "source_sha256": file_hash,
+                 "pagewise_blocks_path": str(blocks), "preflight_path": str(preflight),
+                 "blocks_sha256": hashlib.sha256(blocks.read_bytes()).hexdigest(),
+                 "preflight_sha256": hashlib.sha256(preflight.read_bytes()).hexdigest()}
+        declared = {"resolved_path": str(source), "document_key": "X", "role": "final_bid",
+                    "verified_pagewise_cache": cache}
+        result = intake_verified_pagewise_cache(declared, "SYN", self.root / "cached")
+        quality = json.loads(Path(result["quality_report_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(quality["quality_status"], "needs_human_review")
+        self.assertEqual(quality["empty_pages"], [])
+        self.assertFalse(quality["ocr_semantic_accuracy_verified"])
+        self.assertEqual(len(Path(quality["page_ledger_path"]).read_text(encoding="utf-8").splitlines()), 1)
+        manifest = {"project_id": "SYN-CACHE", "project_type": "construction_project", "documents": [
+            {"document_key": "T1", "role": "tender", "path": "tender.docx", "declared_issued": True},
+            {"document_key": "X", "role": "final_bid", "path": "source.pdf", "declared_final_submitted": True,
+             "verified_pagewise_cache": cache}]}
+        manifest_path = self.root / "cached_manifest.json"
+        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        run(manifest_path, self.root / "cached_run")
+        candidates = json.loads((self.root / "cached_run" / "candidates.json").read_text(encoding="utf-8"))
+        self.assertTrue(any(c["task"] == "bid_standalone_legality" and c["primary_source"]["block_type"] == "table"
+                            for c in candidates))
+        cache["source_sha256"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "cached_source_hash_mismatch"):
+            intake_verified_pagewise_cache(declared, "SYN", self.root / "tampered")
+
     def test_paired_text_gate_does_not_invent_legal_basis(self) -> None:
         out = self.root / "run"
         run(self.manifest_path, out)
@@ -121,6 +167,10 @@ class BundleDevelopmentTest(unittest.TestCase):
         self.assertFalse(result["blocked"])
         self.assertEqual(result["response"]["findings"][0]["legal_evidence"], [])
         self.assertEqual(result["response"]["findings"][0]["conclusion_type"], "potential_risk")
+        normalized, action = normalize_pair_shape(raw["findings"][0])
+        self.assertEqual(action, "wrapped_exact_single_finding_root")
+        self.assertEqual(normalized, raw)
+        self.assertEqual(normalize_pair_shape({"issue_id": label["issue_id"]})[1], None)
         altered = json.loads(json.dumps(raw, ensure_ascii=False))
         altered["findings"][0]["bid_quote"] = "我方具备其他证书。"
         self.assertEqual(apply_pair_gate(altered, label)["status"], "blocked")
@@ -133,6 +183,15 @@ class BundleDevelopmentTest(unittest.TestCase):
             "review_scope": {"documents_received": label["bundle_evidence"]["documents_received"]}},
             "final_llm_response": raw, "post_llm_gate": result}
         (pair_dir / f"{label['issue_id']}.json").write_text(json.dumps(pair_result, ensure_ascii=False), encoding="utf-8")
+        flat_prior = {**pair_result, "final_llm_response": raw["findings"][0],
+                      "provider_diagnostics": {"finish_reason": "stop", "ok": True},
+                      "post_llm_gate": apply_pair_gate(raw["findings"][0], label)}
+        prior_path = self.root / "flat_prior.json"
+        prior_path.write_text(json.dumps(flat_prior, ensure_ascii=False), encoding="utf-8")
+        replayed = replay_stored_result(label, prior_path)
+        self.assertFalse(replayed["post_llm_gate"]["blocked"])
+        self.assertTrue(replayed["offline_replay_no_api_call"])
+        self.assertEqual(replayed["final_llm_response"], raw["findings"][0])
         assembled = assemble(out, pair_dir=pair_dir)
         row = next(x for x in assembled["records"] if x["issue_id"] == label["issue_id"])
         self.assertEqual(row["presentation_response"]["findings"][0]["conclusion_type"], "potential_risk")

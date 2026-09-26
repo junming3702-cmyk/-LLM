@@ -39,6 +39,10 @@ def issue_boundary(issue: dict[str, Any], coverage: dict[str, Any]) -> str:
         empty = doc.get("unreadable_or_empty_physical_pages") or []
         if empty:
             lines.append(f"{doc['document_key']}未识别的物理页：{empty}。")
+        if doc.get("quality_status") != "pass":
+            lines.append(f"{doc['document_key']}解析质量待人工核验；预检状态：{doc.get('preflight_verdict') or '未记录'}。")
+        if doc.get("ocr_semantic_accuracy_verified") is False:
+            lines.append(f"{doc['document_key']}逐页定位已记录，但OCR文字准确性尚未逐页人工核验。")
         if doc.get("page_locator_limitation"):
             lines.append(f"{doc['document_key']}：{doc['page_locator_limitation']}。")
         count = len(doc.get("not_selected_for_semantic_review_block_ids") or [])
@@ -161,6 +165,8 @@ def assemble(issue_dir: Path, core_dir: Path | None = None, handoff_path: Path |
                              "blocked": core_status == "blocked", "response": risk_response}},
         })
     return {"project_id": intake["project_id"], "coverage": coverage,
+            "addenda_inventory": intake.get("addenda_inventory"),
+            "excluded_or_reference_only": intake.get("excluded_or_reference_only", []),
             "records": output, "core_result_count": sum(row["risk_response_gated_unmodified"] is not None for row in output),
             "three_layer_valid_count": sum(row["three_layer_handoff"]["processing_status"] == "valid" for row in output),
             "all_results_require_human_second_review": True,
@@ -174,6 +180,10 @@ def excel_records(assembled: dict[str, Any]) -> list[dict[str, Any]]:
         pages = doc.get("unreadable_or_empty_physical_pages") or []
         if pages:
             notes.append(f"未成功识别页：{pages}；需要OCR或人工核对。")
+        if doc.get("quality_status") != "pass":
+            notes.append(f"解析质量待核验；PDF预检：{doc.get('preflight_verdict') or '未记录'}。")
+        if doc.get("ocr_semantic_accuracy_verified") is False:
+            notes.append("逐页定位已记录，OCR文字准确性未逐页人工核验。")
         if doc.get("page_locator_limitation"):
             notes.append(doc["page_locator_limitation"])
         skipped = doc.get("not_selected_for_semantic_review_block_ids") or []
@@ -189,6 +199,24 @@ def excel_records(assembled: dict[str, Any]) -> list[dict[str, Any]]:
                     "evidence_boundary": "\n".join(notes),
                     "assistant_recommendation": "人工补查未审部分；不得把未发现问题当作合规。",
                     "review_processing_label": "revised", "document_location": "coverage ledger"}]}}})
+    addenda = assembled.get("addenda_inventory")
+    if isinstance(addenda, dict) and addenda.get("status") not in {"verified_none_issued", "verified_all_issued_included"}:
+        records.append({"issue_id": "COVERAGE-ADDENDA", "gate_result": {"status": "review_not_performed",
+            "blocked": False, "response": {"findings": [{"issue_id": "COVERAGE-ADDENDA",
+                "conclusion_type": "review_not_performed", "document_excerpt": "补遗及澄清文件入包核验",
+                "risk_category": "coverage_notice_not_a_risk_finding", "legal_evidence": [],
+                "evidence_boundary": f"清单状态：{addenda.get('status')}; {addenda.get('qualification', '')}",
+                "assistant_recommendation": "人工核对是否曾正式发出补遗、答疑或澄清及其版本；未核对前不得称文件包完整。",
+                "review_processing_label": "revised", "document_location": "bundle intake inventory"}]}}})
+    exclusions = assembled.get("excluded_or_reference_only") or []
+    if exclusions:
+        records.append({"issue_id": "COVERAGE-OTHER-FILES", "gate_result": {"status": "review_not_performed",
+            "blocked": False, "response": {"findings": [{"issue_id": "COVERAGE-OTHER-FILES",
+                "conclusion_type": "review_not_performed", "document_excerpt": "其他提供文件的输入边界",
+                "risk_category": "coverage_notice_not_a_risk_finding", "legal_evidence": [],
+                "evidence_boundary": "; ".join(f"{row.get('name')}: {row.get('role')}" for row in exclusions),
+                "assistant_recommendation": "人工核对未解析的原生投标容器与参考文件，不将其视为已完成自动审查。",
+                "review_processing_label": "revised", "document_location": "bundle intake inventory"}]}}})
     return records
 
 

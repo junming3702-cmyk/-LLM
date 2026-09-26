@@ -15,6 +15,16 @@ final bid. This is a human pre-review aid, never an automatic bid decision.
 only the declared PDF/DOCX files through the existing `DocumentIngestor`.
 It creates original-hash-bound locator maps, extraction quality records,
 `candidates.json`, `coverage.json` and three label streams. No API is called.
+For a previously parsed PDF, a manifest may explicitly supply a
+`verified_pagewise_cache` with the source PDF hash, pagewise-block JSON hash,
+preflight sidecar hash and document alias. This route verifies source/cache
+identity, enumerates every physical page into `page_ledger.jsonl`, and refuses
+hash or page-locator mismatches. It does **not** certify OCR transcription or
+the completeness of a final submission; PDF preflight advisories remain visible.
+Unlike baseline DOCX table parents (whose cells have separate locators), a
+cached MinerU table can contain the only reviewable table text. The whole
+table block is therefore retained as a candidate, marked
+`table_structure_unverified`; cell-level conclusions remain out of scope.
 
 - `legal_core_labels.jsonl`: tender-clause and bid-standalone legality. These
   can be passed as `--labels-file` to the existing strict hierarchy runner.
@@ -31,6 +41,12 @@ paragraph/table locator is never presented as a physical page number.
 Documents needing OCR are flagged for the existing conditional MinerU → local
 coordinate OCR path; this candidate does not automatically send files to a
 third party or promote unchecked OCR text into the high-trust index.
+Matching requires independent textual overlap before a shared clause number
+can boost a score. Identical section numbers alone cannot justify a paired
+response or a potential non-response claim. The `addenda_inventory` and
+`excluded_or_reference_only` manifest fields are preserved in intake and
+separate Excel coverage rows; an unverified addendum inventory is never
+silently called complete.
 
 ## Stage 2: existing core and human-review output
 
@@ -46,6 +62,13 @@ independent source-binding gate distinguishes potential difference, limited
 textual consistency and insufficient comparison. A valid textual comparison
 is not a statement of legal compliance or full-bundle responsiveness. This
 route does not cite a law unless a separate legal task supplied and admitted it.
+The bounded pair-comparison request uses disabled extended thinking; the legal
+reasoner configuration is unchanged. If the model returns exactly one complete
+finding at the JSON root instead of under `findings`, a deterministic wrapper
+may normalize that *shape only*. Both the raw response and normalization are
+retained. `--replay-result FILE` rechecks a stored, source-bound response
+offline without a new API call; it never fills missing fields or repairs
+truncated content.
 
 `assemble.py --bundle-output DIR --core-results LEGAL_DIR --pair-results
 PAIR_DIR --output NEW.json --excel NEW.xlsx` binds results back to their exact
@@ -91,7 +114,8 @@ also pass. Stage 3 unseen-project validation remains explicitly deferred.
 Known limits: current discovery uses a conservative cue list and block-level
 text; it can miss split clauses, tables, synonyms, attachments and issues
 without cue words. Pairing is character-overlap plus clause-number matching,
-not a verified semantic correspondence. The legal-core dependencies and
+with a number-only guard, not a verified semantic correspondence. An unpaired
+item is a search/coverage gap, not evidence of omission. The legal-core dependencies and
 embedding model must be present for online runs; they were not invoked in the
 offline fixture. Legal applicability and final bid completeness still require
 specialist review. An unavailable physical locator is never invented.
