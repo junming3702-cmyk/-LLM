@@ -105,6 +105,12 @@ legal runner or bounded pair reasoner. It requires `--source-manifest`,
 `--approval-file` and a positive `--max-issues`; no batch API call occurs in
 plan/summary modes. First run `--mode plan --source-manifest PATH` so original
 PDF/DOCX hashes, project context, source quotes and pair quotes can be rebound.
+For a bounded throughput/format pilot, `--mode propose-pilot` can create a
+task-balanced, privacy-screened approval **candidate** (optionally from a
+private list of exact issue IDs). This does not authorize network execution:
+the exact excerpts and the `privacy_review_complete` flag require separate
+review, and the secondary identifier screen is not a de-identification
+guarantee. The pilot is not an accuracy sample or a whole-bundle assessment.
 The approval JSON must declare `project_id`, the exact
 `candidate_labels_sha256`, `source_manifest_sha256` from that plan, and
 `approved: [{"issue_id": "...", "label_sha256": "..."}]`.
@@ -126,6 +132,11 @@ privacy-review the exact items before authorizing any network run. The existing
 Excel exporter can then present gated findings, while the JSON summary
 distinguishes machine-assessed items from pending work. The human final-signoff
 column does not erase an already completed preliminary machine conclusion.
+
+`WORKFLOW_ALIGNMENT_CANDIDATE_V1.md` is an unapproved design proposal for
+aligning a broader construction-tendering work instruction with the currently
+implemented three-check pipeline. It does not replace the active system prompt,
+enable evaluation/cost-estimation modules or trigger further online calls.
 
 Before any real online run, separately confirm what text may be sent to
 DeepSeek/MinerU and what must be redacted. The offline tests never read a real

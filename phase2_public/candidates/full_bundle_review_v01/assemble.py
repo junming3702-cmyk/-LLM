@@ -16,7 +16,6 @@ from typing import Any
 
 PUBLIC_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PUBLIC_ROOT / "src"))
-from export_review_excel import build_workbook  # noqa: E402
 
 
 def load_json(path: Path) -> Any:
@@ -235,6 +234,7 @@ def main() -> int:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     if args.excel:
+        from export_review_excel import build_workbook  # noqa: PLC0415
         build_workbook(excel_records(result), args.excel)
     print(json.dumps({"output": str(args.output), "excel": str(args.excel) if args.excel else None,
                       "candidate_count": len(result["records"]), "core_count": result["core_result_count"]}, ensure_ascii=False))

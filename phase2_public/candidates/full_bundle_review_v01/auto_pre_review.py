@@ -29,6 +29,39 @@ ABSTAIN = {"insufficient_information_needs_human_confirm", "insufficient_informa
            "not_supported_by_current_corpus"}
 RUNNABLE_TASKS = {"tender_clause_legality", "bid_standalone_legality", "bid_responsiveness"}
 SENSITIVE_NUMBER = re.compile(r"(?<!\d)(?:1[3-9]\d{9}|\d{17}[\dXx]|\d{12,19})(?!\d)")
+SENSITIVE_PATTERNS = {
+    "numeric_identifier": SENSITIVE_NUMBER,
+    "email_address": re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.I),
+    "person_named_field": re.compile(
+        r"(?:联系人|法定代表人|委托代理人|授权代表|项目经理|姓名|身份证号)\s*[:：]?\s*[\u4e00-\u9fff]{2,4}"
+    ),
+    "named_organization": re.compile(
+        r"[\u4e00-\u9fffA-Za-z0-9（）()·\-]{2,60}(?:有限公司|有限责任公司|集团公司|工程公司|中学|小学|大学|医院)"
+    ),
+    "contact_address_or_account": re.compile(r"通讯地址|联系地址|住址|办公地址|银行账号|开户行|收款账号|账户名称"),
+    "web_address": re.compile(r"https?://\S+", re.I),
+}
+
+
+def privacy_risk_codes(label: dict[str, Any]) -> list[str]:
+    """Conservative screen over all free-text fields sent to the runners.
+
+    This catches common identifiers but does not certify de-identification:
+    the exact excerpts still require review before any real-world batch.
+    Opaque document hashes and block IDs are excluded to avoid false positives
+    from long numeric runs inside SHA-256 values.
+    """
+    bundle = label.get("bundle_evidence") or {}
+    text_fields: list[Any] = [label.get("project_id"), label.get("document_excerpt"),
+                              label.get("retrieval_queries"), label.get("runtime_project_context")]
+    for source in [bundle.get("primary"), bundle.get("paired_bid_source"),
+                   *(row.get("source") for row in bundle.get("alternatives") or [] if isinstance(row, dict))]:
+        if isinstance(source, dict):
+            text_fields.append(source.get("quote"))
+    text_fields.extend(row.get("page_locator_limitation") for row in bundle.get("coverage") or []
+                       if isinstance(row, dict))
+    text = json.dumps(text_fields, ensure_ascii=False)
+    return [code for code, pattern in SENSITIVE_PATTERNS.items() if pattern.search(text)]
 
 
 def read_json(path: Path) -> Any:
@@ -182,6 +215,89 @@ def validate_approval(plan_data: dict[str, Any], approval: dict[str, Any], max_i
     return chosen
 
 
+def propose_pilot(bundle_dir: Path, plan_data: dict[str, Any], targets: dict[str, int],
+                  existing_core: Path | None = None, existing_pair: Path | None = None,
+                  selected_ids: list[str] | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Spread a small *privacy-screened* smoke sample across three tasks.
+
+    This is a throughput/format pilot, not random sampling or an accuracy set.
+    An operator must still inspect the exact excerpts before online execution.
+    """
+    labels = {r["issue_id"]: r for r in read_jsonl(bundle_dir / "candidate_labels.jsonl")}
+    routes = {r["issue_id"]: r for r in plan_data["items"]}
+    allowed_tasks = {"tender_clause_legality", "bid_standalone_legality", "bid_responsiveness"}
+    if set(targets) != allowed_tasks or any(not isinstance(v, int) or v < 1 for v in targets.values()):
+        raise ValueError("positive_target_required_for_each_review_task")
+    if selected_ids is not None and (len(selected_ids) != sum(targets.values())
+                                     or len(set(selected_ids)) != len(selected_ids)
+                                     or any(not isinstance(x, str) for x in selected_ids)):
+        raise ValueError("curated_pilot_ids_must_be_unique_and_match_target_total")
+    already_run = set()
+    for directory in (existing_core, existing_pair):
+        if directory:
+            already_run.update(p.stem for p in directory.glob("*.json") if p.stem in routes)
+    approval_rows = []
+    audit = {"selection_purpose": "throughput_and_format_smoke_not_accuracy",
+             "selection_method": "curated_ids_then_privacy_screen" if selected_ids is not None else "page_spread_then_privacy_screen",
+             "already_run_excluded": len(already_run), "targets": targets, "screened_out": {},
+             "selected_ids_by_task": {}}
+    for task, target in targets.items():
+        pool = []
+        reasons = Counter()
+        for row in plan_data["items"]:
+            if row["task"] != task or row["machine_route"] == "pairing_unresolved" or row["issue_id"] in already_run:
+                continue
+            label = labels[row["issue_id"]]
+            privacy = privacy_risk_codes(label)
+            source = label["bundle_evidence"]["primary"]
+            excerpt = label["document_excerpt"]
+            if privacy:
+                reasons.update(privacy)
+            elif source.get("quote_truncated") or not source.get("source_locator"):
+                reasons.update(["source_locator_not_complete"])
+            elif not 8 <= len(excerpt) <= 800:
+                reasons.update(["excerpt_length_outside_pilot"])
+            else:
+                page = source.get("page_number")
+                pool.append((page if isinstance(page, int) else 10**9, row["issue_id"], row))
+        pool.sort()
+        if len(pool) < target:
+            raise ValueError(f"too_few_privacy_screened_pilot_items:{task}")
+        safe = {issue_id: row for _, issue_id, row in pool}
+        if selected_ids is not None:
+            selected = [issue_id for issue_id in selected_ids if routes.get(issue_id, {}).get("task") == task]
+            if len(selected) != target or any(issue_id not in safe for issue_id in selected):
+                raise ValueError(f"curated_pilot_item_failed_privacy_or_route_check:{task}")
+        else:
+            used_excerpts = set()
+            selected = []
+            for index in range(target):
+                center = (2 * index + 1) * len(pool) // (2 * target)
+                offsets = sorted(range(len(pool)), key=lambda i: (abs(i - center), i))
+                for offset in offsets:
+                    _, issue_id, _ = pool[offset]
+                    excerpt = labels[issue_id]["document_excerpt"]
+                    if issue_id not in selected and excerpt not in used_excerpts:
+                        selected.append(issue_id)
+                        used_excerpts.add(excerpt)
+                        break
+                else:
+                    raise ValueError(f"not_enough_distinct_pilot_excerpts:{task}")
+        for issue_id in selected:
+            approval_rows.append({"issue_id": issue_id, "label_sha256": safe[issue_id]["label_sha256"]})
+        audit["screened_out"][task] = dict(reasons)
+        audit["selected_ids_by_task"][task] = selected
+    if selected_ids is not None and set(selected_ids) != {row["issue_id"] for row in approval_rows}:
+        raise ValueError("curated_pilot_contains_unknown_or_unrouted_issue")
+    approval = {"project_id": plan_data["project_id"],
+                "candidate_labels_sha256": plan_data["candidate_labels_sha256"],
+                "source_manifest_sha256": plan_data["source_manifest_sha256"],
+                "approved": approval_rows,
+                "privacy_review_complete": False,
+                "purpose": "bounded_preliminary_review_smoke_not_whole_bundle_or_accuracy"}
+    return approval, audit
+
+
 def result_bound_to_label(result: dict[str, Any], label: dict[str, Any]) -> None:
     runtime = result.get("runtime_input") or {}
     if (result.get("issue_id") != label["issue_id"]
@@ -211,6 +327,8 @@ def execute_approved(bundle_dir: Path, output_dir: Path, approval: dict[str, Any
                      source_manifest: Path | None = None) -> dict[str, Any]:
     if source_manifest is None:
         raise ValueError("online_dispatch_requires_original_source_manifest")
+    if approval.get("privacy_review_complete") is not True:
+        raise ValueError("exact_excerpt_privacy_review_required_before_online")
     plan_data = plan(bundle_dir, source_manifest)
     chosen = validate_approval(plan_data, approval, max_issues)
     if output_dir.exists() and any(output_dir.iterdir()):
@@ -231,15 +349,13 @@ def execute_approved(bundle_dir: Path, output_dir: Path, approval: dict[str, Any
         route = "pair" if label["review_task_kind"] == "bid_responsiveness" else "legal"
         target = output_dir / route / f"{issue_id}.json"
         result = None
+        privacy_codes: list[str] = []
         try:
-            # Conservative secondary screen, not a guarantee of de-identification.
-            # The separately approved exact label is still the primary boundary.
             # The legal runtime also transmits bundle_evidence, including
-            # coverage and potential alternate source text. Screen the entire
-            # bound label, not just its displayed excerpt.
-            visible_payload = label
-            if SENSITIVE_NUMBER.search(json.dumps(visible_payload, ensure_ascii=False)):
-                raise ValueError("sensitive_number_detected_before_transmission")
+            # coverage and alternate source text. Screen the *entire* label.
+            privacy_codes = privacy_risk_codes(label)
+            if privacy_codes:
+                raise ValueError("sensitive_content_detected_before_transmission")
             result = pair_executor(label) if route == "pair" else legal_executor(label)
             result_bound_to_label(result, label)
             target.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -251,11 +367,14 @@ def execute_approved(bundle_dir: Path, output_dir: Path, approval: dict[str, Any
                 quarantine = output_dir / route / f"{issue_id}.quarantine.json"
                 quarantine.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             # No excerpt, provider payload or secret enters this compact log.
-            known = {"sensitive_number_detected_before_transmission", "result_not_bound_to_approved_label",
+            known = {"sensitive_content_detected_before_transmission", "result_not_bound_to_approved_label",
                      "result_without_gate", "invalid_gate_status_or_block_flag",
                      "gated_finding_issue_binding_mismatch"}
-            audit["failed"].append({"issue_id": issue_id, "route": route,
-                                    "failure_code": str(exc) if str(exc) in known else type(exc).__name__})
+            failure = {"issue_id": issue_id, "route": route,
+                       "failure_code": str(exc) if str(exc) in known else type(exc).__name__}
+            if privacy_codes:
+                failure["privacy_risk_codes"] = privacy_codes
+            audit["failed"].append(failure)
         (output_dir / "batch_audit.json").write_text(json.dumps(audit, ensure_ascii=False, indent=2) + "\n",
                                                       encoding="utf-8")
     assembled = assemble(bundle_dir, core_dir=output_dir / "legal", pair_dir=output_dir / "pair")
@@ -378,12 +497,17 @@ def main() -> int:
     parser.add_argument("--source-manifest", type=Path,
                         help="Required for online calls: rebind original source hashes and project context")
     parser.add_argument("--output-root", type=Path, required=True)
-    parser.add_argument("--mode", choices=("plan", "summarize", "execute-online"), default="plan")
+    parser.add_argument("--mode", choices=("plan", "summarize", "propose-pilot", "execute-online"), default="plan")
     parser.add_argument("--core-results", type=Path)
     parser.add_argument("--pair-results", type=Path)
     parser.add_argument("--approval-file", type=Path)
     parser.add_argument("--max-issues", type=int, default=0,
                         help="Maximum approved issues, not a cap on internal model/API requests")
+    parser.add_argument("--pilot-tender", type=int, default=8)
+    parser.add_argument("--pilot-bid", type=int, default=8)
+    parser.add_argument("--pilot-pair", type=int, default=4)
+    parser.add_argument("--pilot-ids-file", type=Path,
+                        help="Private JSON array of exact issue IDs for a curated bounded pilot")
     parser.add_argument("--final-max-tokens", type=int, default=16384)
     parser.add_argument("--triage-max-tokens", type=int, default=2048)
     parser.add_argument("--pair-max-tokens", type=int, default=2048)
@@ -396,6 +520,30 @@ def main() -> int:
     if args.mode == "plan":
         result = plan(args.bundle_output, args.source_manifest)
         path = args.output_root / "automation_plan.json"
+    elif args.mode == "propose-pilot":
+        if not args.source_manifest:
+            parser.error("pilot proposal requires --source-manifest")
+        planned = plan(args.bundle_output, args.source_manifest)
+        targets = {"tender_clause_legality": args.pilot_tender,
+                   "bid_standalone_legality": args.pilot_bid,
+                   "bid_responsiveness": args.pilot_pair}
+        selected_ids = read_json(args.pilot_ids_file) if args.pilot_ids_file else None
+        if selected_ids is not None and not isinstance(selected_ids, list):
+            parser.error("--pilot-ids-file must contain a JSON array of issue IDs")
+        approval, audit = propose_pilot(args.bundle_output, planned, targets,
+                                        args.core_results, args.pair_results, selected_ids)
+        if args.max_issues < 1 or sum(targets.values()) > args.max_issues:
+            parser.error("pilot target total must not exceed positive --max-issues")
+        validate_approval(planned, approval, args.max_issues)
+        approval_path = args.output_root / "pilot_approval_candidate.private.json"
+        audit_path = args.output_root / "pilot_selection_audit.json"
+        if approval_path.exists() or audit_path.exists():
+            raise FileExistsError("refuse_to_overwrite_existing_pilot_proposal")
+        approval_path.write_text(json.dumps(approval, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        audit_path.write_text(json.dumps(audit, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(json.dumps({"approval_candidate": str(approval_path), "count": len(approval["approved"]),
+                          "manual_privacy_review_required": True}, ensure_ascii=False))
+        return 0
     elif args.mode == "summarize":
         result = summarize(args.bundle_output, args.core_results, args.pair_results)
         path = args.output_root / "machine_preliminary_summary.json"
@@ -409,6 +557,8 @@ def main() -> int:
         planned = plan(args.bundle_output, args.source_manifest)
         approval = read_json(args.approval_file)
         validate_approval(planned, approval, args.max_issues)
+        if approval.get("privacy_review_complete") is not True:
+            raise ValueError("exact_excerpt_privacy_review_required_before_online")
         legal, pair, provenance = online_executors(final_max_tokens=args.final_max_tokens,
                                                     triage_max_tokens=args.triage_max_tokens,
                                                     pair_max_tokens=args.pair_max_tokens, top_k=args.top_k,

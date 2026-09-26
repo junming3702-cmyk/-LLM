@@ -10,7 +10,8 @@ import unittest
 from docx import Document
 
 from auto_pre_review import (classify, execute_approved, plan, result_bound_to_label,
-                             summarize, validate_approval, SENSITIVE_NUMBER)
+                             summarize, validate_approval, privacy_risk_codes, propose_pilot,
+                             SENSITIVE_NUMBER)
 from bundle_review import run
 from pair_reasoner import apply_pair_gate
 
@@ -62,11 +63,31 @@ class AutomaticPreReviewTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "exact_label_mismatch"):
             validate_approval(planned, approval, 1)
 
+    def test_pilot_proposal_is_bounded_screened_and_requires_privacy_review(self) -> None:
+        planned = plan(self.bundle_dir, self.manifest_path)
+        targets = {"tender_clause_legality": 1, "bid_standalone_legality": 1,
+                   "bid_responsiveness": 1}
+        approval, audit = propose_pilot(self.bundle_dir, planned, targets)
+        self.assertEqual(len(validate_approval(planned, approval, 3)), 3)
+        self.assertFalse(approval["privacy_review_complete"])
+        self.assertEqual(set(audit["selected_ids_by_task"]), set(targets))
+        curated_ids = [row["issue_id"] for row in approval["approved"]]
+        curated, curated_audit = propose_pilot(self.bundle_dir, planned, targets,
+                                               selected_ids=curated_ids)
+        self.assertEqual([row["issue_id"] for row in curated["approved"]], curated_ids)
+        self.assertEqual(curated_audit["selection_method"], "curated_ids_then_privacy_screen")
+        with self.assertRaisesRegex(ValueError, "curated_pilot_ids_must_be_unique"):
+            propose_pilot(self.bundle_dir, planned, targets, selected_ids=curated_ids[:1] * 3)
+        with self.assertRaisesRegex(ValueError, "exact_excerpt_privacy_review_required"):
+            execute_approved(self.bundle_dir, self.root / "pilot_not_reviewed", approval, 3,
+                             lambda _: {}, lambda _: {}, source_manifest=self.manifest_path)
+
     def test_machine_conclusions_and_human_signoff_are_separate(self) -> None:
         planned = plan(self.bundle_dir, self.manifest_path)
         legal = next(x for x in planned["items"] if x["machine_route"] == "strict_legal_cascade")
         pair = next(x for x in planned["items"] if x["machine_route"] == "pair_reasoner")
         approval = {"project_id": planned["project_id"],
+                    "privacy_review_complete": True,
                     "candidate_labels_sha256": planned["candidate_labels_sha256"],
                     "source_manifest_sha256": planned["source_manifest_sha256"],
                     "approved": [{"issue_id": x["issue_id"], "label_sha256": x["label_sha256"]}
@@ -124,6 +145,7 @@ class AutomaticPreReviewTest(unittest.TestCase):
         planned = plan(self.bundle_dir, self.manifest_path)
         legal = next(x for x in planned["items"] if x["machine_route"] == "strict_legal_cascade")
         approval = {"project_id": planned["project_id"],
+                    "privacy_review_complete": True,
                     "candidate_labels_sha256": planned["candidate_labels_sha256"],
                     "source_manifest_sha256": planned["source_manifest_sha256"],
                     "approved": [{"issue_id": legal["issue_id"], "label_sha256": legal["label_sha256"]}]}
@@ -142,6 +164,7 @@ class AutomaticPreReviewTest(unittest.TestCase):
         planned = plan(self.bundle_dir, self.manifest_path)
         legal = next(x for x in planned["items"] if x["machine_route"] == "strict_legal_cascade")
         approval = {"project_id": planned["project_id"],
+                    "privacy_review_complete": True,
                     "candidate_labels_sha256": planned["candidate_labels_sha256"],
                     "source_manifest_sha256": planned["source_manifest_sha256"],
                     "approved": [{"issue_id": legal["issue_id"], "label_sha256": legal["label_sha256"]}]}
@@ -187,6 +210,8 @@ class AutomaticPreReviewTest(unittest.TestCase):
     def test_secondary_sensitive_number_screen_prevents_dispatch(self) -> None:
         self.assertIsNotNone(SENSITIVE_NUMBER.search("联系人13812345678"))
         self.assertIsNone(SENSITIVE_NUMBER.search("投标保证金按估算价的2%提供"))
+        self.assertIn("email_address", privacy_risk_codes({"document_excerpt": "contact@example.com"}))
+        self.assertIn("named_organization", privacy_risk_codes({"document_excerpt": "某某建设有限公司"}))
         with self.assertRaisesRegex(ValueError, "requires_original_source_manifest"):
             execute_approved(self.bundle_dir, self.root / "privacy", {}, 1,
                              lambda _: {}, lambda _: {})
@@ -206,6 +231,7 @@ class AutomaticPreReviewTest(unittest.TestCase):
         planned = plan(bundle, manifest_path)
         item = next(x for x in planned["items"] if x["machine_route"] == "strict_legal_cascade")
         approval = {"project_id": planned["project_id"],
+                    "privacy_review_complete": True,
                     "candidate_labels_sha256": planned["candidate_labels_sha256"],
                     "source_manifest_sha256": planned["source_manifest_sha256"],
                     "approved": [{"issue_id": item["issue_id"], "label_sha256": item["label_sha256"]}]}
@@ -216,7 +242,8 @@ class AutomaticPreReviewTest(unittest.TestCase):
         audit = execute_approved(bundle, self.root / "sensitive_batch", approval, 1,
                                  must_not_call, must_not_call, source_manifest=manifest_path)
         self.assertEqual(dispatched, [])
-        self.assertEqual(audit["failed"][0]["failure_code"], "sensitive_number_detected_before_transmission")
+        self.assertEqual(audit["failed"][0]["failure_code"], "sensitive_content_detected_before_transmission")
+        self.assertIn("numeric_identifier", audit["failed"][0]["privacy_risk_codes"])
 
 
 if __name__ == "__main__":
