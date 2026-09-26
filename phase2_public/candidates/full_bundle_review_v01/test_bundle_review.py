@@ -207,6 +207,15 @@ class BundleDevelopmentTest(unittest.TestCase):
         self.assertEqual(row["risk_response_gated_unmodified"], gated)
         self.assertEqual(row["three_layer_handoff"]["handoff_status"], "ready_for_complete_review")
         self.assertTrue(row["three_layer_handoff"]["presentation_only"])
+        embedded = dict(core)
+        embedded["three_layer_protocol"] = json.loads(handoff_path.read_text(encoding="utf-8"))[0]
+        (core_dir / f"{issue['issue_id']}.json").write_text(json.dumps(embedded, ensure_ascii=False), encoding="utf-8")
+        embedded_result = assemble(out, core_dir)
+        embedded_row = next(x for x in embedded_result["records"] if x["issue_id"] == issue["issue_id"])
+        self.assertEqual(embedded_row["three_layer_handoff"]["processing_status"], "valid")
+        self.assertEqual(embedded_row["presentation_response"]["findings"][0]["conclusion_type"], "requires_human_legal_review")
+        with self.assertRaisesRegex(ValueError, "duplicate_three_layer_source_for_issue"):
+            assemble(out, core_dir, handoff_path)
         tampered = dict(core)
         tampered["runtime_input"] = {**core["runtime_input"], "review_task_kind": "bid_responsiveness"}
         (core_dir / f"{issue['issue_id']}.json").write_text(json.dumps(tampered, ensure_ascii=False), encoding="utf-8")

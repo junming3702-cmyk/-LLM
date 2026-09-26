@@ -52,12 +52,16 @@ PAIR_DIR --output NEW.json --excel NEW.xlsx` binds results back to their exact
 candidate and document hashes, preserves raw/gated results, adds coverage
 notices and calls the existing human-review Excel exporter. Missing results
 remain `not_run`; unpaired response candidates remain `not_eligible_unpaired`.
-The optional `--handoff-records FILE` takes complete raw three-layer protocol
-responses plus their trusted contexts, validates the exact task/source
-bindings and calls the existing three-layer gate. The resulting claim
+The assembler accepts a `three_layer_protocol` packet embedded in the same
+core-result record, or the optional `--handoff-records FILE` for a separate
+replay, but never both for one issue. It requires a complete raw three-layer
+response and trusted context, validates exact task/source bindings and calls
+the existing three-layer gate. The resulting claim
 completion and handoff status is displayed **in addition to** the substantive
 risk finding. No fabricated three-layer response is generated from a legacy
 risk label. No `ready_for_*` handoff status means a correct legal judgement.
+Automatic generation of a semantically valid three-layer packet is not yet
+proven; without a packet, the handoff is visibly `not_available`.
 
 Before any real online run, separately confirm what text may be sent to
 DeepSeek/MinerU and what must be redacted. The offline tests never read a real

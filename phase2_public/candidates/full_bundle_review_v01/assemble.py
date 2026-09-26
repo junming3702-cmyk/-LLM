@@ -132,7 +132,10 @@ def assemble(issue_dir: Path, core_dir: Path | None = None, handoff_path: Path |
                 "legal_evidence": [], "assistant_recommendation": "完成法规与招标要求核验后由专业人员复核；当前不得作合规结论。",
                 "review_processing_label": "revised"}]}
             raw_response = None
-        supplement = handoff_for_issue(issue, handoffs.get(issue_id), allowed_sources)
+        embedded_handoff = core.get("three_layer_protocol") if core else None
+        if embedded_handoff is not None and issue_id in handoffs:
+            raise ValueError(f"duplicate_three_layer_source_for_issue:{issue_id}")
+        supplement = handoff_for_issue(issue, handoffs.get(issue_id, embedded_handoff), allowed_sources)
         boundary = issue_boundary(issue, coverage)
         for finding in risk_response.get("findings") or []:
             if not isinstance(finding, dict):
