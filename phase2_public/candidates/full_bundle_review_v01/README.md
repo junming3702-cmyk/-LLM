@@ -7,7 +7,8 @@ been independently validated on a previously unseen complete project.
 `ACCEPTANCE_CONTRACT.md` fixes the system's intended input, two tasks / three
 checks, deliverable and safety boundary. The manifest is explicit so that an
 award/evaluation record cannot be silently mixed into the original tender or
-final bid. This is a human pre-review aid, never an automatic bid decision.
+final bid. The intended product is an automated preliminary review with a
+separate human legal sign-off, never an automatic bid decision.
 
 ## Stage 1: offline intake and discovery
 
@@ -85,6 +86,46 @@ risk finding. No fabricated three-layer response is generated from a legacy
 risk label. No `ready_for_*` handoff status means a correct legal judgement.
 Automatic generation of a semantically valid three-layer packet is not yet
 proven; without a packet, the handoff is visibly `not_available`.
+
+## Automatic preliminary assessment, separately from legal sign-off
+
+`auto_pre_review.py --bundle-output DIR --output-root NEW_DIR --mode plan`
+builds an **offline** route inventory. `--mode summarize` can read existing
+legal/pair result directories without an API call. Its JSON keeps three states
+separate: whether the machine actually assessed the unit, what bounded
+preliminary conclusion it returned, and whether a human has signed off.
+Unrun, unresolved-pairing and blocked units are never counted as clean.
+Only machine-assessed items carry `preliminary_findings` with quoted source,
+locator, admitted basis, evidence boundary and suggested next check; unrun and
+blocked items have an empty findings list, not a fabricated clean verdict.
+`processable_candidate_execution_complete` is not whole-file completeness.
+
+`--mode execute-online` dispatches approved issue IDs to the existing strict
+legal runner or bounded pair reasoner. It requires `--source-manifest`,
+`--approval-file` and a positive `--max-issues`; no batch API call occurs in
+plan/summary modes. First run `--mode plan --source-manifest PATH` so original
+PDF/DOCX hashes, project context, source quotes and pair quotes can be rebound.
+The approval JSON must declare `project_id`, the exact
+`candidate_labels_sha256`, `source_manifest_sha256` from that plan, and
+`approved: [{"issue_id": "...", "label_sha256": "..."}]`.
+This is an exact-input guard, **not** a replacement for actual permission or
+human verification of de-identification. A conservative numeric identifier
+screen may block an approved label; it cannot prove a label contains no
+personal data. Results are written per issue with a bounded audit; malformed
+responses are quarantined rather than silently converted into success. Token
+limits are recorded separately for legal-final (default 16384), legal-triage
+(2048) and pair comparison (2048, thinking disabled). The optional external
+fallback requires an allowlisted source manifest. `--max-issues` limits issue
+dispatches, **not** internal LLM requests: one legal issue can involve several
+triage/final calls and potentially a bounded external recheck.
+
+The candidate dispatcher does not yet solve incomplete item discovery,
+ambiguous cross-file matches or unseen-project accuracy. On a real file bundle
+with thousands of candidates, a large API batch may be expensive; plan and
+privacy-review the exact items before authorizing any network run. The existing
+Excel exporter can then present gated findings, while the JSON summary
+distinguishes machine-assessed items from pending work. The human final-signoff
+column does not erase an already completed preliminary machine conclusion.
 
 Before any real online run, separately confirm what text may be sent to
 DeepSeek/MinerU and what must be redacted. The offline tests never read a real
