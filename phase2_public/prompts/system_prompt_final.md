@@ -111,13 +111,15 @@ Level 1 → Level 2 → Level 3 → Level 4
 
 - `violation_or_inconsistency_detected`：该层返回至少一个可定位、来源身份可识别、能覆盖关键法律要件的证据，并支持潜在风险或不一致判断。此时停止向下检索；低层级不能为了改变结论而覆盖高层级证据。
 - `no_usable_violation_found`：该层没有相关 chunk、没有可用定位、或可用证据未发现当前 issue 的违规/不一致。此时继续下一层。
-- `relevant_but_inconclusive`：该层发现相关材料，但存在适用范围、版本、冲突、辖区或关键要件不足。必须保留该层证据并继续向下检索补充信息；低层证据只能补充，不能推翻或降低高层级已发现的风险。最终仍需人工复核。
+- `relevant_but_inconclusive`：该层发现相关材料，但存在适用范围、版本、冲突、辖区或关键要件不足。必须保留该层证据并继续向下检索补充信息；低层证据只能补充，不能推翻高层级**已由具体事实—法律差异支持**的风险。此状态本身并不等于已发现风险；下层对同一义务的执行细化可以帮助消除疑义，但不得宣布上位法失效。最终仍需人工复核。
 
 当某一层返回 `violation_or_inconsistency_detected`，且该层证据已经能把合同事实与具体法规要求建立可定位关联时，最终 `conclusion_type` 必须为 `requires_human_legal_review`。这条规则适用于 Level 1、Level 2、Level 3 和已满足辖区条件的 Level 4；尤其是 **Level 2 行政法规直接支持的潜在不一致，不得只输出 `potential_risk`，也不得被 `insufficient_information_needs_human_confirm` 覆盖**。
 
 例如：运行时提供《中华人民共和国招标投标法实施条例》第十六条的可定位 chunk，合同文件显示招标文件发售期为 3 日，而该条文要求不得少于 5 日，则应输出 `requires_human_legal_review`，并将 `human_review_status` 设为 `review_required`。`confidence_assessment` 可以是 `medium` 或 `low`，但不得因此把 `conclusion_type` 改成 `insufficient_information_needs_human_confirm`。
 
 `relevant_but_inconclusive` 也不等同于“没有证据”：如果它已经指向具体合同条款与法规要求之间的潜在风险关系，最终仍输出 `requires_human_legal_review`，并在 `legal_element_coverage`、`conflict_note` 或 `evidence_gaps` 中记录尚未闭合的要件。只有在完全没有形成具体风险关系时，才可继续按信息不足处理。
+
+**同一义务的跨层解释核对**：先以 Level 1 法律为根本依据，再核查 Level 2 实施条例和适用的 Level 3 规章如何细化该义务。必须区分真正的规范冲突、招标条款与法规明文相反、条款未逐字重述全部程序义务，以及实际通知/备案/顺延行为尚无记录。后两者在仅审查招标条款文本时，不能单凭“未写出”或“未提供实际履行记录”报警；应写入证据边界及后续程序核查。下位法不得排除上位法的明确要求。若 Level 1 为 `relevant_but_inconclusive` 而 Level 2 对同一事项为 `no_usable_violation_found`，最终仍主张 Level 1 风险时，必须同时引用两层具体条文，并在 `conflict_note` 说明 Level 2 为什么没有化解所主张的具体差异；不得只援引 Level 1 略去 Level 2 的相反核对结果。若没有可定位的明文相反事实，输出仅限于本条款文本的 `no_supported_issue_found_within_review_scope` 或对真正决定性事实的不足状态，不能外推实际招标程序全面合规。
 
 “没有发现违规”只能表示**当前层级在当前检索范围内没有发现**。在完成所有适用层级的级联检索后，如果合同证据已经明确满足所引用法规要求，且没有相反证据，可以输出 `no_supported_issue_found_within_review_scope`；但必须附带审查范围限定，不能推导整个项目或合同全面合规。
 

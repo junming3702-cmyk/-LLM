@@ -457,6 +457,7 @@ def summarize(bundle_dir: Path, core_dir: Path | None = None, pair_dir: Path | N
 
 
 def online_executors(*, final_max_tokens: int, triage_max_tokens: int, pair_max_tokens: int,
+                     compact_final_output: bool,
                      top_k: int, run_id: str, enable_external_fallback: bool,
                      external_manifest: Path | None) -> tuple[Callable, Callable, dict[str, Any]]:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
@@ -478,7 +479,7 @@ def online_executors(*, final_max_tokens: int, triage_max_tokens: int, pair_max_
     def legal(label: dict[str, Any]) -> dict[str, Any]:
         return run_case(api_key=api_key, retriever=retriever, final_prompt=prompt, context_template={}, label=label,
                         top_k=top_k, final_max_tokens=final_max_tokens, triage_max_tokens=triage_max_tokens,
-                        compact_final_output=False, experiment_run_id=run_id, external_fallback=fallback)
+                        compact_final_output=compact_final_output, experiment_run_id=run_id, external_fallback=fallback)
 
     def pair(label: dict[str, Any]) -> dict[str, Any]:
         return run_pair_online(label, api_key, pair_max_tokens)
@@ -509,6 +510,8 @@ def main() -> int:
     parser.add_argument("--pilot-ids-file", type=Path,
                         help="Private JSON array of exact issue IDs for a curated bounded pilot")
     parser.add_argument("--final-max-tokens", type=int, default=16384)
+    parser.add_argument("--compact-final-output", action="store_true",
+                        help="Request compact one-issue JSON; gate restores review-table fields")
     parser.add_argument("--triage-max-tokens", type=int, default=2048)
     parser.add_argument("--pair-max-tokens", type=int, default=2048)
     parser.add_argument("--top-k", type=int, default=5)
@@ -561,11 +564,13 @@ def main() -> int:
             raise ValueError("exact_excerpt_privacy_review_required_before_online")
         legal, pair, provenance = online_executors(final_max_tokens=args.final_max_tokens,
                                                     triage_max_tokens=args.triage_max_tokens,
+                                                    compact_final_output=args.compact_final_output,
                                                     pair_max_tokens=args.pair_max_tokens, top_k=args.top_k,
                                                     run_id=args.run_id, enable_external_fallback=args.enable_external_fallback,
                                                     external_manifest=args.external_manifest)
         settings = {"model": "deepseek-v4-flash", "legal_final_max_tokens": args.final_max_tokens,
                     "legal_triage_max_tokens": args.triage_max_tokens,
+                    "compact_final_output": args.compact_final_output,
                     "pair_max_tokens": args.pair_max_tokens, "pair_thinking_mode": "disabled",
                     "legal_thinking_mode": "enabled", "external_fallback_enabled": args.enable_external_fallback,
                     "run_id": args.run_id, **provenance}

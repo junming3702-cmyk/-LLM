@@ -102,11 +102,17 @@ Return one JSON object only:
 Definitions:
 - violation_or_inconsistency_detected: a locatable, independently usable passage at
   this level covers the decisive legal element and supports a concrete potential
-  inconsistency. It still requires human legal review.
+  inconsistency in the supplied text or an observed procedure. Merely omitting
+  a legal duty from a non-exclusive tender clause does not prove contradiction.
+  It still requires human legal review.
 - no_usable_violation_found: no candidate supports a concrete inconsistency, or the
-  supplied fact affirmatively satisfies the retrieved requirement.
+  supplied fact affirmatively satisfies the retrieved requirement. A cited
+  implementing regulation may specify how a higher-level duty is performed;
+  that is not by itself a conflict or a replacement of the higher law.
 - relevant_but_inconclusive: related evidence exists but applicability, version,
   scope, exception, facts, or legal-element coverage remains unresolved.
+  Do not use this state merely because actual notice, filing, or extension
+  records were not supplied when the task is limited to reviewing clause text.
 
 Supplement-only/practice/warning material cannot independently support
 violation_or_inconsistency_detected. Level 4 cannot be treated as applicable unless
@@ -466,7 +472,76 @@ def run_final_reasoning(
     raw: Any = response.get("parsed")
     if raw is None:
         raw = response.get("selected_text", "")
-    return response, apply_gate(raw, runtime_input)
+    gate_result = apply_gate(raw, runtime_input)
+    return response, require_cross_level_reconciliation(gate_result, runtime_input)
+
+
+def require_cross_level_reconciliation(
+    gate_result: dict[str, Any], runtime_input: dict[str, Any]
+) -> dict[str, Any]:
+    """Hold an unreconciled Level-1 risk when Level 2 found no violation.
+
+    This is a delivery guard, not an automatic legal reclassification. A true
+    Level-1 violation stops the cascade and cannot meet this condition.
+    """
+
+    if gate_result.get("blocked"):
+        return gate_result
+    audit = runtime_input.get("hierarchy_retrieval_audit") or {}
+    levels = {row.get("level"): row for row in audit.get("levels", []) if isinstance(row, dict)}
+    level1 = levels.get("Level 1") or {}
+    level2 = levels.get("Level 2") or {}
+    if (level1.get("level_state") != "relevant_but_inconclusive"
+            or level2.get("level_state") != "no_usable_violation_found"):
+        return gate_result
+    selected_l2 = {
+        str(chunk_id)
+        for phase in level2.get("phases", [])
+        if isinstance(phase, dict)
+        for chunk_id in phase.get("selected_chunk_ids", [])
+    }
+    if not selected_l2:
+        return gate_result
+    selected_l1 = {
+        str(chunk_id)
+        for phase in level1.get("phases", [])
+        if isinstance(phase, dict)
+        for chunk_id in phase.get("selected_chunk_ids", [])
+    }
+    response = gate_result.get("response") or {}
+    for finding in response.get("findings", []) or []:
+        if not isinstance(finding, dict) or finding.get("conclusion_type") not in {
+            "requires_human_legal_review", "requires_human_legal_confirm"
+        }:
+            continue
+        citations = {
+            str(item.get("chunk_id"))
+            for item in finding.get("legal_evidence", []) or []
+            if isinstance(item, dict) and item.get("chunk_id")
+        }
+        # A distinct Level-3/4-only risk is unaffected. Citing Level 3 as
+        # well must not conceal an unreconciled Level-1 claim.
+        if citations.isdisjoint(selected_l1):
+            continue
+        if citations.isdisjoint(selected_l2) or not str(finding.get("conflict_note") or "").strip():
+            reason = (
+                "cross_level_reconciliation_missing: Level 1 was inconclusive and "
+                "Level 2 found no usable violation for this issue; a risk must "
+                "cite the selected Level 2 provision and explain in conflict_note "
+                "why it does not resolve the claimed Level 1 difference"
+            )
+            return {
+                "status": "blocked", "blocked": True,
+                "actions": list(gate_result.get("actions", [])) + [reason],
+                "raw_response": gate_result.get("raw_response"),
+                "pre_reconciliation_gate_status": gate_result.get("status"),
+                "response": gate_result.get("response"),
+                "cross_level_reconciliation": {
+                    "status": "held_for_human_review", "reason": reason,
+                    "level2_selected_chunk_ids": sorted(selected_l2),
+                },
+            }
+    return gate_result
 
 
 def run_case(
@@ -990,7 +1065,7 @@ def run_case(
         "final_llm_response": final_response,
         "post_llm_gate": gate_result,
         "run_status": "completed",
-        "ready_for_human_delivery": True,
+        "ready_for_human_delivery": not bool(gate_result.get("blocked")),
         "offline_gold_comparison": {
             "gold_fields_were_sent_to_api": False,
             "risk_category": label.get("risk_category"),
