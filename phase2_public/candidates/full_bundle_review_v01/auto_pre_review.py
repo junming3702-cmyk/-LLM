@@ -392,6 +392,7 @@ def execute_approved(bundle_dir: Path, output_dir: Path, approval: dict[str, Any
 
 def classify(row: dict[str, Any]) -> dict[str, Any]:
     gate = row.get("risk_response_gated_unmodified")
+    typed_review = row.get("professional_review_v1") or {}
     core_status = row["core_status"]
     if core_status == "not_eligible_unpaired":
         status = "pairing_unresolved_not_a_nonresponse_finding"
@@ -418,6 +419,9 @@ def classify(row: dict[str, Any]) -> dict[str, Any]:
     findings = (row["presentation_response"].get("findings") or []) if assessable else []
     return {"issue_id": row["issue_id"], "task": row["task"],
             "machine_processing_status": status, "gate_status": core_status,
+            "professional_review_protocol_status": typed_review.get("status", "not_provided"),
+            "u_cause_codes": (typed_review.get("u_cause_codes") or []) if status == "machine_abstained_with_reason" else [],
+            "gap_groups": (typed_review.get("gap_groups") or {}) if assessable else {},
             "conclusion_types": [f.get("conclusion_type") for f in
                                  (row["presentation_response"].get("findings") or []) if isinstance(f, dict)],
             "preliminary_findings": [{key: f.get(key) for key in (

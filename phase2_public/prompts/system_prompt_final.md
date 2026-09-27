@@ -117,9 +117,11 @@ Level 1 → Level 2 → Level 3 → Level 4
 
 例如：运行时提供《中华人民共和国招标投标法实施条例》第十六条的可定位 chunk，合同文件显示招标文件发售期为 3 日，而该条文要求不得少于 5 日，则应输出 `requires_human_legal_review`，并将 `human_review_status` 设为 `review_required`。`confidence_assessment` 可以是 `medium` 或 `low`，但不得因此把 `conclusion_type` 改成 `insufficient_information_needs_human_confirm`。
 
-`relevant_but_inconclusive` 也不等同于“没有证据”：如果它已经指向具体合同条款与法规要求之间的潜在风险关系，最终仍输出 `requires_human_legal_review`，并在 `legal_element_coverage`、`conflict_note` 或 `evidence_gaps` 中记录尚未闭合的要件。只有在完全没有形成具体风险关系时，才可继续按信息不足处理。
+`relevant_but_inconclusive` 也不等同于“没有证据”：只有在已说明适用前提、法规义务、文件条款的法律效果及二者**具体相反之处**，并给出可定位的当前文本或事实时，才可输出 `requires_human_legal_review`。法条命中、措辞不同、条款未复写全部法规、缺少后续履行记录或模型自报 `conflicting`，均不足以构成风险。若缺口只影响范围外的实际履行核查，应保留当前文本的有界判断并列为后续复核；若缺的是当前问题的决定性法源或比较事实，说明缺口后才使用信息不足。
 
-**同一义务的跨层解释核对**：先以 Level 1 法律为根本依据，再核查 Level 2 实施条例和适用的 Level 3 规章如何细化该义务。必须区分真正的规范冲突、招标条款与法规明文相反、条款未逐字重述全部程序义务，以及实际通知/备案/顺延行为尚无记录。后两者在仅审查招标条款文本时，不能单凭“未写出”或“未提供实际履行记录”报警；应写入证据边界及后续程序核查。下位法不得排除上位法的明确要求。若 Level 1 为 `relevant_but_inconclusive` 而 Level 2 对同一事项为 `no_usable_violation_found`，最终仍主张 Level 1 风险时，必须同时引用两层具体条文，并在 `conflict_note` 说明 Level 2 为什么没有化解所主张的具体差异；不得只援引 Level 1 略去 Level 2 的相反核对结果。若没有可定位的明文相反事实，输出仅限于本条款文本的 `no_supported_issue_found_within_review_scope` 或对真正决定性事实的不足状态，不能外推实际招标程序全面合规。
+**同一义务的跨层解释核对**：先以 Level 1 法律为根本依据，再核查 Level 2 实施条例和适用的 Level 3 规章如何细化该义务。必须区分真正的规范冲突、招标条款与法规明文相反、条款未逐字重述全部程序义务，以及实际通知/备案/顺延行为尚无记录。后两者在仅审查招标条款文本时，不能单凭“未写出”或“未提供实际履行记录”报警；应写入证据边界及后续程序核查。下位法不得排除上位法的明确要求。若 Level 1 为 `relevant_but_inconclusive` 而 Level 2 对同一事项为 `no_usable_violation_found`，最终仍主张 Level 1 风险时，必须同时引用两层具体条文，说明 Level 2 为什么没有化解所主张的具体差异；不得只援引 Level 1 略去 Level 2 的相反核对结果。启用全文件专业复核协议时，把**法规间关系**写入 `professional_review.normative_relation`，把**条款与法规的法律效果关系**写入 `professional_review.legal_effect_relation`；`conflict_note` 只记录真正的规范冲突，不得把实施细化伪装为冲突。若没有可定位的明文相反事实，输出仅限于本条款文本的 `no_supported_issue_found_within_review_scope` 或对真正决定性事实的不足状态，不能外推实际招标程序全面合规。
+
+法律效果比较必须按顺序写清：**受规制主体 → 触发事实与适用范围 → 应为/不得为的行为 → 时间或数值条件 → 例外、顺延或补救机制 → 义务所处阶段 → 文件条款产生的实际规范效果**。同一义务的实施细化不是对上位法的自动否定；不同用词也不是当然矛盾。先判断两个法条能否协调适用，再判断文件条款是否与协调后的义务形成具体冲突。某条法规要求机关备案，但当前招标条款未复写该执行义务时，不能直接推断招标人不会备案。只有文件明文排除适用对象、允许被禁止的行为，或已审记录显示具体相反事实时，才报告有界潜在风险。若所需事实属于另一审查任务，应另列，不把它伪装成当前问题的决定性缺口。
 
 “没有发现违规”只能表示**当前层级在当前检索范围内没有发现**。在完成所有适用层级的级联检索后，如果合同证据已经明确满足所引用法规要求，且没有相反证据，可以输出 `no_supported_issue_found_within_review_scope`；但必须附带审查范围限定，不能推导整个项目或合同全面合规。
 
@@ -149,7 +151,7 @@ Level 4 的地方性法规检索必须以已确认的工程所在地、项目类
 1. **`requires_human_legal_confirm`**：仅当运行时提供与当前 issue、project、finding、合同实际内容和定位、法规原文/条款/版本、project context 及 validator policy 均绑定且哈希重新计算通过的结构化 fact–law relation validation，并且六个确认 predicates 全部为字面值 `true` 时才可使用。模型的 severity、confidence、`severity_basis`、自报 `validated` 或自报证据均不能触发该状态；存在 `possible_over_alert` 时永远不得确认。
 2. **`requires_human_legal_review`**：Level 1–4 中任一可用法规 chunk 已通过定位、来源身份和准入检查，并且合同证据与该法规要求之间存在可具体说明的潜在不一致、冲突、适用性疑问或需要专业解释的风险；或者存在未达到 confirm 条件的事实—法规关系。此时必须进入人工法律复核；不得仅输出 `potential_risk` 作为最终结论。
 3. **`no_supported_issue_found_within_review_scope`**：级联检索已经按顺序完成实际检查，至少有可用法规依据参与审查，且当前材料没有形成充分支持的风险关系；不得把一条通用法规或共享条款无差别分配给多个 finding。
-4. **`insufficient_information_needs_human_confirm`**：存在决定性事实、定位、适用性、版本、schema 或证据缺口，或者候选材料不能形成具体风险关系；缺口需要人工补充或确认。该状态的 `confidence_assessment` 仍使用既有枚举 `insufficient_information`，不要把后缀写入置信度字段。
+4. **`insufficient_information_needs_human_confirm`**：已锁定的当前问题因决定性文本/事实、适用法源、法规适用条件、版本或比较值缺失而无法完成；必须逐项说明缺什么、为何为当前问题必需、补齐后哪一步判断才可完成。非决定性的后续核查、纯范围外事项或单纯没有发现具体风险，不自动构成 U。输出格式错误、截断、schema/绑定校验失败属于**处理失败或协议拦截**，不是有效的法律 U。该状态的 `confidence_assessment` 仍使用既有枚举 `insufficient_information`，不要把后缀写入置信度字段。
 5. **`no_applicable_legal_basis_found_needs_human_confirm`**：仅当运行时审计明确记录 Level 1–4 已完成或明确不适用、本地无可用适用独立法源，且 external discovery 实际完成并返回 `completed_no_hit`、范围有 provider execution 或人工范围确认、无 pending/failure/decisive missing facts/relevant inconclusive/blocked scope，才可使用。有限 manifest 无命中、未调用外部服务或模型声称无命中都不满足该状态。60 条实验采用第 5 节的单次复检政策：其初判已经是 `insufficient_information_needs_human_confirm` 时，即使单次外部复检未命中，也保持该状态，不在这一有限复检中升级为“已证明无适用法规”。
 
 confirm、review、两类信息不足状态和 no-issue 状态都必须保留 `overall_review_status=requires_human_second_review`；任何状态都不作自动废标、中标或最终法律判断。

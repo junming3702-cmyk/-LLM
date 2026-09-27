@@ -139,12 +139,21 @@ def assemble(issue_dir: Path, core_dir: Path | None = None, handoff_path: Path |
         if embedded_handoff is not None and issue_id in handoffs:
             raise ValueError(f"duplicate_three_layer_source_for_issue:{issue_id}")
         supplement = handoff_for_issue(issue, handoffs.get(issue_id, embedded_handoff), allowed_sources)
+        typed_review = deepcopy((core.get("post_llm_gate") or {}).get("professional_review_v1")) if core else None
         boundary = issue_boundary(issue, coverage)
         for finding in risk_response.get("findings") or []:
             if not isinstance(finding, dict):
                 continue
             existing = str(finding.get("evidence_boundary") or "").strip()
-            finding["evidence_boundary"] = "\n".join(filter(None, [existing, boundary,
+            typed_gap_note = ""
+            if (typed_review or {}).get("status") == "valid" and finding.get("conclusion_type") == "insufficient_information_needs_human_confirm":
+                gaps = (finding.get("professional_review") or {}).get("gaps") or []
+                decisive = [g for g in gaps if isinstance(g, dict) and g.get("task_relation") == "decisive_for_claim"]
+                typed_gap_note = "本问题决定性缺口：" + "；".join(
+                    f"{g.get('dependency_key')}／{g.get('kind')}：{g.get('detail')}（阻断：{g.get('counterfactual_impact')}）"
+                    for g in decisive
+                )
+            finding["evidence_boundary"] = "\n".join(filter(None, [existing, typed_gap_note, boundary,
                 f"三层交接：{supplement['handoff_status']}；此状态不替代风险判断。"]))
             if issue["task"] == "bid_responsiveness":
                 pair = issue.get("pairing") or {}
@@ -159,6 +168,7 @@ def assemble(issue_dir: Path, core_dir: Path | None = None, handoff_path: Path |
             "issue_id": issue_id, "task": issue["task"], "core_status": core_status,
             "risk_response_raw": raw_response, "risk_response_gated_unmodified": core.get("post_llm_gate") if core else None,
             "presentation_response": risk_response, "three_layer_handoff": supplement,
+            "professional_review_v1": typed_review,
             "bundle_review": issue, "evidence_boundary": boundary,
             "excel_record": {"issue_id": issue_id, "gate_result": {"status": core_status,
                              "blocked": core_status == "blocked", "response": risk_response}},

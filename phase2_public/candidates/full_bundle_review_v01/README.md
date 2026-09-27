@@ -51,11 +51,32 @@ silently called complete.
 
 ## Stage 2: existing core and human-review output
 
-The strict-hierarchy runner now accepts `bundle_evidence` and
-`review_task_kind` on legal candidates, puts the declared document set and
-coverage into the runtime message, and appends a narrowly scoped legal-task
-prompt. It refuses the bid-response task. The existing legal retrieval, LLM,
-external fallback policy and deterministic gate are otherwise untouched.
+The strict-hierarchy runner accepts `bundle_evidence` and
+`review_task_kind` on legal candidates, locks a `review_task_contract_v1`
+before level triage, puts the declared document set and coverage into the
+runtime message, and appends a bundle-only professional legal-effect prompt.
+It refuses the bid-response task. The four-level cascade and external
+fallback policy remain in place. The legal post-gate now also applies
+`bundle_legal_review_v1.py` to these two text-legality tasks; non-bundle
+historical runs retain their existing guard.
+
+The added protocol separates (1) the relationship among cited norms,
+(2) the document clause's effect against each legal element, and (3) typed
+decisive gaps, out-of-scope follow-ups and processing holds. A lower-level
+implementing rule is not treated as a contradiction merely because its wording
+differs from the governing law. A risk must point to an admitted provision,
+a concrete contrary element and an exact source-excerpt quote. When Level 1
+triage is inconclusive and Level 2 finds no usable violation, a delivered
+risk or bounded no-issue finding must account for both selected provisions.
+The protocol reuses the frozen three-layer dependency/kind vocabulary but
+does not silently promote its whole candidate packet into production.
+`raw_response`, the legacy gated result and `professional_review_v1` remain
+separate. A failed protocol or malformed response is not relabelled as a
+legal-information-insufficiency finding. For a valid U, the Excel presentation
+adds the typed decisive gap and why it blocks this question; the original
+response is not rewritten. Structural validation cannot certify that the
+model's legal interpretation is substantively correct. All preliminary
+findings still require a human legal review before external use.
 
 `pair_reasoner.py` uses the **same DeepSeek model/client** only when someone
 explicitly invokes `--execute-online` for an already paired issue. Its
@@ -171,3 +192,9 @@ item is a search/coverage gap, not evidence of omission. The legal-core dependen
 embedding model must be present for online runs; they were not invoked in the
 offline fixture. Legal applicability and final bid completeness still require
 specialist review. An unavailable physical locator is never invented.
+
+The bundle-only legal-effect guards in
+`phase2_public/tests/test_bundle_legal_review_v1.py` use synthetic concordant,
+contrary, gap and cross-level cases. Passing them does not establish accuracy
+on the old real project or an unseen project; an authorized online rerun is
+needed before making that claim.
