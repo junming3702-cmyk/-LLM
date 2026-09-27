@@ -127,6 +127,10 @@ def main() -> None:
         help="Comma-separated 1-based pages, or 'auto' for every page.",
     )
     parser.add_argument("--scale", type=float, default=2.0)
+    parser.add_argument(
+        "--disable-mkldnn", action="store_true",
+        help="Disable oneDNN/MKLDNN for CPU inference when the installed Paddle backend is incompatible.",
+    )
     args = parser.parse_args()
 
     args.output_root.mkdir(parents=True, exist_ok=True)
@@ -141,16 +145,22 @@ def main() -> None:
 
     from paddleocr import PaddleOCR
 
+    ocr_options = {
+        "lang": "ch",
+        "device": "cpu",
+        "use_doc_orientation_classify": False,
+        "use_doc_unwarping": False,
+        "use_textline_orientation": False,
+    }
+    if args.disable_mkldnn:
+        ocr_options["enable_mkldnn"] = False
     try:
-        ocr = PaddleOCR(
-            lang="ch",
-            device="cpu",
-            use_doc_orientation_classify=False,
-            use_doc_unwarping=False,
-            use_textline_orientation=False,
-        )
+        ocr = PaddleOCR(**ocr_options)
     except TypeError:
-        ocr = PaddleOCR(lang="ch", device="cpu")
+        fallback_options = {"lang": "ch", "device": "cpu"}
+        if args.disable_mkldnn:
+            fallback_options["enable_mkldnn"] = False
+        ocr = PaddleOCR(**fallback_options)
 
     pdf = pdfium.PdfDocument(str(args.input))
     if args.pages.strip().lower() == "auto":
@@ -244,6 +254,7 @@ def main() -> None:
                 "coordinate_coverage": coordinate_coverage,
                 "overall_status": "needs_human_review",
                 "retrieval_admission": "candidate_enhancement_only",
+                "mkldnn_disabled": args.disable_mkldnn,
                 "gate_note": "Coordinate OCR supplies physical locators but does not independently establish legal meaning.",
             },
             ensure_ascii=False,
