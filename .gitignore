@@ -35,6 +35,7 @@ logs/
 *.zip
 
 # Model weights and generated caches
+.venv/
 embedding_models/
 *.safetensors
 *.bin

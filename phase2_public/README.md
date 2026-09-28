@@ -90,13 +90,47 @@ Every state retains `requires_human_second_review` as the overall delivery statu
 
 ## Local setup
 
-1. Create a Python environment and install `requirements.txt`.
-2. Copy `.env.example` to `.env`; add credentials only to the local untracked file.
-3. Place legally redistributable extracted sources under `law_extracted/` and run
+1. For an offline public regression, use the one-command procedure below;
+   no API key, private project or downloaded model weight is needed.
+2. For optional online use, copy `.env.example` to `.env`; add credentials only
+   to the local untracked file. Do not commit, print or share the key.
+3. For an actual retrieval run, place legally redistributable extracted sources under `law_extracted/` and run
    `src/build_rag_index.py`, or set `RAG_CORPUS_FILE` to an existing local corpus.
 4. Set `EMBEDDING_MODEL_CACHE` to a local SentenceTransformers cache. The strict
    retriever fails closed rather than silently downloading a different model.
-5. Run the offline tests before any API execution.
+5. Run the offline regression before any API execution.
+
+## One-command public offline reproduction
+
+Prerequisite: Python 3.10 or newer with `venv` and `pip`; on the first run,
+network access and space for the packages in `requirements.txt` are needed.
+From the repository root, run one command:
+
+```powershell
+python phase2_public/reproduce_offline.py
+```
+
+On first use, the script creates an ignored `phase2_public/.venv` and installs
+the listed dependencies. It then runs the active core tests and full-bundle
+fixture tests. A successful run prints `PASS: public offline regression`;
+at this revision, the expected counts are **97 core + 28 bundle = 125 tests**.
+It prints the active Prompt's SHA-256 so runs can be tied to a specific file.
+Subsequent runs reuse the local environment. With dependencies already
+installed in a different Python environment, use:
+
+```powershell
+python phase2_public/reproduce_offline.py --no-install --python "PATH_TO_PYTHON"
+```
+
+This command makes **no DeepSeek, MinerU, OCR-provider or external-law API
+call**, does not require `.env`, and does not load private QX30 files. It is a
+one-command *functional regression*, not a reproduction of published
+retrieval scores, real-project outcomes or professional review results. The
+public corpus file is a schema sample, not the full local legal corpus; see
+`data/rag/README.md`. Full QX30 reproduction additionally requires the
+restricted original inputs, admissible source versions, local embedding
+snapshot, API authorization and a separately recorded run. Do not substitute
+award status for a legal ground truth.
 
 The source code accepts `MODEL_PHASE_ROOT`, `RAG_CORPUS_FILE`,
 `EMBEDDING_MODEL_CACHE`, `GOLD_LABELS_FILE`, `SYSTEM_PROMPT_FILE`,
