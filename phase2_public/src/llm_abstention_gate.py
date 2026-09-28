@@ -19,6 +19,10 @@ import json
 import re
 from typing import Any
 from external_fallback_v2 import is_usable_legal_basis as _is_usable_legal_basis
+from task_gap_protocol_v1 import (
+    LEGAL_U_FIELDS, LEGAL_U_STATUSES, PROCESSING_STATUSES,
+    verified_row_matches,
+)
 
 from conclusion_contract_v2 import (
     CANONICAL_CONCLUSION_STATES,
@@ -923,33 +927,20 @@ def _validate_runtime_legal_u_basis(finding: dict, runtime_input: dict) -> str |
     basis = finding.get("legal_u_basis")
     if not isinstance(basis, dict):
         return "legal_u_basis_missing"
-    fields = ("claim_id", "question_verbatim", "dependency_key", "missing_material",
-              "material_status", "reason", "counterfactual_impact", "next_check")
-    if any(not isinstance(basis.get(key), str) or not basis[key].strip() for key in fields):
+    if any(not isinstance(basis.get(key), str) or not basis[key].strip()
+           for key in LEGAL_U_FIELDS):
         return "legal_u_basis_incomplete"
     if (basis["claim_id"] != runtime_input.get("issue_id")
             or basis["question_verbatim"] != contract.get("question_verbatim")
             or basis["dependency_key"] not in (contract.get("required_for_legal_conclusion") or [])):
         return "legal_u_basis_not_bound_to_locked_question"
-    if basis["material_status"] in {"unreadable", "not_in_current_input", "processing_failed"}:
+    if basis["material_status"] in PROCESSING_STATUSES:
         return "source_processing_gap_not_legal_u"
     if basis["material_status"] == "future_event_unknown" and contract.get("declared_task_type") != "actual_conduct":
         return "future_event_outside_locked_task"
-    if basis["material_status"] not in {"confirmed_missing_from_package", "applicable_rule_unavailable",
-                                     "decisive_fact_unknown", "future_event_unknown"}:
+    if basis["material_status"] not in LEGAL_U_STATUSES:
         return "material_status_not_legal_u"
-    audits = runtime_input.get("task_gap_audit") or []
-    if not isinstance(audits, list) or not any(
-        isinstance(row, dict) and row.get("validated") is True
-        and row.get("record_origin") in {"deterministic_input_audit", "human_confirmed"}
-        and row.get("issue_id") == basis["claim_id"]
-        and row.get("dependency_key") == basis["dependency_key"]
-        and row.get("material_status") == basis["material_status"]
-        and row.get("missing_material") == basis["missing_material"]
-        and row.get("review_question") == basis["question_verbatim"]
-        and isinstance(row.get("audit_locator"), str) and bool(row["audit_locator"].strip())
-        for row in audits
-    ):
+    if not verified_row_matches(runtime_input, basis):
         return "decisive_gap_not_attested_by_runtime"
     return None
 
@@ -2458,6 +2449,16 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
         reason = "LLM response was not a JSON object"
         return processing_hold(raw_response, runtime_input, reason, failure_class="invalid_json")
 
+    task_v2 = runtime_input.get("review_task_contract_v2") or {}
+    if (task_aware and task_v2
+            and (task_v2.get("declared_task_type") == "document_completeness"
+                 or (task_v2.get("declared_task_type") == "document_response"
+                     and task_v2.get("scope") == "supplied_text_consistency"))):
+        return processing_hold(
+            raw_response, runtime_input,
+            "source_bound_observation_or_text_comparison_requires_task_subconclusion_route",
+            failure_class="task_route_mismatch")
+
     response = deepcopy(raw_response)
     raw_response_preserved = deepcopy(raw_response)
     _set_field(response, "run_id", runtime_input.get("run_id", ""), actions, "root")
@@ -2961,6 +2962,16 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
             no_law_invariant=no_law_invariant,
         )
         _normalize_risk_severity(finding, actions, path)
+
+        # The gate itself may turn R/N into U. Never deliver that *new* U
+        # without the same independently attested, question-bound basis.
+        if (task_aware and runtime_input.get("review_task_contract_v2")
+                and finding.get("conclusion_type") == INSUFFICIENT_INFORMATION_NEEDS_HUMAN_CONFIRM):
+            reason = _validate_runtime_legal_u_basis(finding, runtime_input)
+            if reason:
+                return processing_hold(raw_response_preserved, runtime_input,
+                                       f"{path}.post_gate_{reason}",
+                                       failure_class="unverified_decisive_gap", actions=actions)
 
         conclusion_changed = finding.get("conclusion_type") != original_conclusion_type
         any_conclusion_changed = any_conclusion_changed or conclusion_changed
