@@ -61,6 +61,10 @@ Every state retains `requires_human_second_review` as the overall delivery statu
   candidate discovery, tender-to-bid matching, legal/pair reasoning routes and
   human-review assembly. Development-fixture checks only; not independently
   validated or production-enabled;
+- `candidates/qx30_approved_repair_v13/`: approved formative repair readout for
+  source-date/numbering, Level-2 evidence delivery, narrow text comparison,
+  unchanged risk alerts, and typed remaining holds. The repair paths are opt-in;
+  private QX excerpts and API responses are not included;
 - `evaluation/`: benchmark summaries and the separate expert-review protocol;
 - `evaluation/reasoning/full60_one_shot_external_recheck_protocol_v1.md`: the
   active 60-item external-recheck sequence and audit contract;

@@ -2450,6 +2450,14 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
         return processing_hold(raw_response, runtime_input, reason, failure_class="invalid_json")
 
     task_v2 = runtime_input.get("review_task_contract_v2") or {}
+    if (task_v2 and runtime_input.get("task_route_protocol_version") == "text-pair-v1"):
+        from task_text_comparison_v1 import route_task
+        contract_evidence = runtime_input.get("contract_evidence") or {}
+        route = route_task(task_v2, str(contract_evidence.get("document_excerpt") or ""))
+        if route["route"] == "text_response_comparison":
+            return processing_hold(raw_response, runtime_input,
+                                   "source_bound_text_comparison_requires_nonlegal_route",
+                                   failure_class="task_route_mismatch")
     if (task_aware and task_v2
             and (task_v2.get("declared_task_type") == "document_completeness"
                  or (task_v2.get("declared_task_type") == "document_response"

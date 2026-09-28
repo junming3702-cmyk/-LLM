@@ -23,6 +23,7 @@ from sentence_transformers import SentenceTransformer
 
 from run_embedding_hybrid_retrieval import BM25_WEIGHT, VECTOR_WEIGHT
 from run_retrieval_test import bm25_rank, build_index
+from law_source_version_v1 import versioned_2022_corpus
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
@@ -142,6 +143,9 @@ class RankedCandidate:
             "law": row.get("title"),
             "article": row.get("article"),
             "source_locator": row.get("source_locator"),
+            "source_version": row.get("source_version"),
+            "source_url": row.get("source_url"),
+            "supersedes_chunk_id": row.get("supersedes_chunk_id"),
             "normative_level": row.get("normative_level"),
             "normative_type": row.get("normative_type"),
             "source_role": row.get("source_role"),
@@ -170,10 +174,15 @@ class StrictHierarchyHybridRetriever:
         corpus_file: Path = CORPUS_FILE,
         embedding_model: str = DEFAULT_EMBEDDING_MODEL,
         device: str = "cpu",
+        as_of_date: str | None = None,
     ) -> None:
         self.corpus_file = Path(corpus_file)
         self.corpus = load_jsonl(self.corpus_file)
         self.corpus_sha256 = sha256_file(self.corpus_file)
+        self.source_version_audit: dict[str, Any] | None = None
+        if as_of_date is not None:
+            self.corpus, self.source_version_audit = versioned_2022_corpus(
+                self.corpus, as_of_date=as_of_date)
         self.embedding_model_name = embedding_model
         self.embedding_model_source = resolve_local_embedding_model(embedding_model)
         self.model = SentenceTransformer(

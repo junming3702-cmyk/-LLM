@@ -45,6 +45,7 @@ from external_fallback_v2 import (
 from conclusion_contract_v2 import INSUFFICIENT_INFORMATION_NEEDS_HUMAN_CONFIRM
 from llm_abstention_gate import apply_gate, processing_hold
 from task_subconclusion_v1 import apply_task_gate, prompt_addendum as task_prompt_addendum
+from task_text_comparison_v1 import compare as compare_locked_text
 from bundle_legal_review_v1 import (
     assess_protocol as assess_bundle_review_protocol,
     build_task_contract as build_bundle_task_contract,
@@ -473,7 +474,15 @@ def run_final_reasoning(
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Run one final-reasoning pass and apply the deterministic gate."""
 
+    text_contract = runtime_input.get("task_text_comparison_contract_v1")
     task_contract = runtime_input.get("task_subconclusion_contract_v1")
+    if text_contract is not None:
+        if task_contract is not None or runtime_input.get("review_task_contract_v1") is not None:
+            raise ValueError("legal_observation_and_text_contracts_cannot_share_one_call")
+        # A locked text-only comparison has no reason to consume legal LLM tokens.
+        result = compare_locked_text(text_contract)
+        return ({"ok": True, "model_requested": "none", "finish_reason": "deterministic",
+                 "parsed": None, "usage": {"prompt_tokens": 0, "completion_tokens": 0}}, result)
     if task_contract is not None and runtime_input.get("review_task_contract_v1") is not None:
         raise ValueError("legal_and_observation_task_contracts_cannot_share_one_call")
     # Do not feed a legal-verdict system prompt to a pure observation task.
@@ -518,7 +527,8 @@ def require_cross_level_reconciliation(
     Level-1 violation stops the cascade and cannot meet this condition.
     """
 
-    if runtime_input.get("task_subconclusion_contract_v1") is not None:
+    if (runtime_input.get("task_subconclusion_contract_v1") is not None
+            or runtime_input.get("task_text_comparison_contract_v1") is not None):
         return gate_result
     # The full-bundle route uses a locked task and a legal-effect comparison,
     # including typed decisive gaps. Keep the frozen single-issue guard below
@@ -592,6 +602,7 @@ def run_case(
     compact_final_output: bool,
     experiment_run_id: str,
     external_fallback: ExternalFallbackStateMachine | None = None,
+    duration_query_expansion: bool = False,
 ) -> dict[str, Any]:
     if label.get("review_task_kind") == "bid_responsiveness":
         raise ValueError("bid_responsiveness_requires_pair_reasoner_not_legal_cascade")
@@ -601,6 +612,14 @@ def run_case(
         for value in label.get("retrieval_queries", [])
         if str(value).strip()
     ] or [query]
+    query_expansion_audit = {"enabled": False, "added_queries": []}
+    if duration_query_expansion:
+        from retrieval_task_query_v1 import expand_document_acquisition_queries
+        retrieval_queries, query_expansion_audit = expand_document_acquisition_queries(
+            str(label.get("review_question") or label.get("question") or retrieval_queries[0]),
+            retrieval_queries,
+        )
+        query_expansion_audit["enabled"] = True
     context = build_context(context_template, label)
     bundle_task_contract = build_bundle_task_contract(label)
     audit_levels: list[dict[str, Any]] = []
@@ -957,6 +976,7 @@ def run_case(
         "external_sources_used": external_candidates,
         "retrieved_legal_evidence": runtime_evidence,
         "retrieval_queries": retrieval_queries,
+        "query_expansion_audit": query_expansion_audit,
         "triage_binding": {
             "issue_id": label["issue_id"],
             "level_decisions_are_issue_specific": True,
@@ -1138,6 +1158,10 @@ def main() -> int:
     parser.add_argument("--run-id", default="strict-hierarchy-llm-smoke-v1")
     parser.add_argument("--output-root", type=Path, default=OUT_ROOT)
     parser.add_argument("--embedding-model", default=DEFAULT_EMBEDDING_MODEL)
+    parser.add_argument("--as-of-date", default=None,
+                        help="Opt in to the audited, 2022-only departmental-source correction")
+    parser.add_argument("--enable-duration-query-expansion", action="store_true",
+                        help="Opt in to answer-free document-acquisition-duration synonyms")
     parser.add_argument("--all-issues", action="store_true")
     parser.add_argument("--approve-bundle-transmission", action="store_true",
                         help="Explicitly acknowledge authorized transmission of this bundle's excerpts")
@@ -1184,7 +1208,8 @@ def main() -> int:
     api_key = load_api_key()
     final_prompt = PROMPT_FILE.read_text(encoding="utf-8")
     context_template = json.loads(args.project_context_file.read_text(encoding="utf-8"))
-    retriever = StrictHierarchyHybridRetriever(embedding_model=args.embedding_model)
+    retriever = StrictHierarchyHybridRetriever(embedding_model=args.embedding_model,
+                                               as_of_date=args.as_of_date)
     output_root.mkdir(parents=True, exist_ok=True)
     external_manifest_entries: list[dict[str, Any]] = []
     external_manifest_error = ""
@@ -1212,6 +1237,8 @@ def main() -> int:
         "system_prompt_sha256": sha256_text(final_prompt),
         "corpus": str(CORPUS_FILE),
         "corpus_sha256": retriever.corpus_sha256,
+        "source_version_audit": retriever.source_version_audit,
+        "duration_query_expansion": args.enable_duration_query_expansion,
         "embedding_model": retriever.embedding_model_name,
         "embedding_model_source": str(retriever.embedding_model_source),
         "embedding_loading": "local_snapshot_only_no_network_fallback",
@@ -1277,6 +1304,7 @@ def main() -> int:
             compact_final_output=args.compact_final_output,
             experiment_run_id=args.run_id,
             external_fallback=external_fallback,
+            duration_query_expansion=args.enable_duration_query_expansion,
         )
         result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
         manifest["results"].append(
