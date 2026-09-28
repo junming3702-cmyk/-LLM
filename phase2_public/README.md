@@ -68,8 +68,10 @@ Every state retains `requires_human_second_review` as the overall delivery statu
 - `prompts/system_prompt_final.md`: active v11 reasoning and output contract;
 - `prompts/bundle_professional_addendum_final.md`: active full-file
   professional review and typed-gap addendum;
-- `skill/evidence-grounded-contract-review/SKILL.md`: the same policy organised
-  as a reusable skill;
+- `skill/evidence-grounded-contract-review/SKILL.md`: reusable operator skill
+  for the active legal core and the explicitly opt-in full-bundle route; its
+  references distinguish the two V1 design documents from code already
+  implemented and tested;
 - `data/gold/`: the frozen 60-item synthetic development set and schemas;
 - `data/law/`: four-level and external-source manifests;
 - `data/rag/`: a public corpus sample and instructions for building a local corpus;
@@ -131,6 +133,28 @@ public corpus file is a schema sample, not the full local legal corpus; see
 restricted original inputs, admissible source versions, local embedding
 snapshot, API authorization and a separately recorded run. Do not substitute
 award status for a legal ground truth.
+
+## Reusable skill and real-run boundary
+
+The installable skill package is
+[`skill/evidence-grounded-contract-review/`](skill/evidence-grounded-contract-review/SKILL.md).
+Its [runbook](skill/evidence-grounded-contract-review/references/RUNBOOK.md)
+provides the offline one-command check and the **separate**, permission-gated
+steps for bundle intake, conditional MinerU/OCR, task routing, legal/pair
+reasoning and Excel assembly. The
+[V1 alignment ledger](skill/evidence-grounded-contract-review/references/V1_ALIGNMENT_AND_STATUS.md)
+records which parts of the user-supplied full-workflow and compliance-mode V1
+instructions are active, candidate-only or still unimplemented. Copy the
+entire skill directory into a Codex skills directory if local skill activation
+is desired, and keep this repository checkout available for its code and active
+prompts. The skill package is not a standalone copy of the model; copying it
+does not enable online API execution.
+
+The full-bundle entry point currently uses block/cue discovery and provisional
+tender-to-bid matching. It is useful for a controlled preliminary review, not
+proof of exhaustive issue discovery or whole-file legal accuracy. Addenda
+remain an inventory rather than fully integrated effective-version text.
+Unreviewed pages, unresolved pairs and processing holds must remain visible.
 
 The source code accepts `MODEL_PHASE_ROOT`, `RAG_CORPUS_FILE`,
 `EMBEDDING_MODEL_CACHE`, `GOLD_LABELS_FILE`, `SYSTEM_PROMPT_FILE`,
