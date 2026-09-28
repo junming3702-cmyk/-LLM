@@ -23,7 +23,7 @@ from sentence_transformers import SentenceTransformer
 
 from run_embedding_hybrid_retrieval import BM25_WEIGHT, VECTOR_WEIGHT
 from run_retrieval_test import bm25_rank, build_index
-from law_source_version_v1 import versioned_2022_corpus
+from law_source_version_v1 import active_versioned_corpus
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
@@ -179,10 +179,8 @@ class StrictHierarchyHybridRetriever:
         self.corpus_file = Path(corpus_file)
         self.corpus = load_jsonl(self.corpus_file)
         self.corpus_sha256 = sha256_file(self.corpus_file)
-        self.source_version_audit: dict[str, Any] | None = None
-        if as_of_date is not None:
-            self.corpus, self.source_version_audit = versioned_2022_corpus(
-                self.corpus, as_of_date=as_of_date)
+        self.corpus, self.source_version_audit = active_versioned_corpus(
+            self.corpus, as_of_date=as_of_date)
         self.embedding_model_name = embedding_model
         self.embedding_model_source = resolve_local_embedding_model(embedding_model)
         self.model = SentenceTransformer(

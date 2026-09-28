@@ -5,6 +5,14 @@ description: Review Chinese tendering, bidding, construction, and contract docum
 
 # Evidence-Grounded Contract Review
 
+This skill describes the active Phase-2 workflow. The executable legal-output
+contract is `../../prompts/system_prompt_final.md`; the active full-file
+professional addendum is
+`../../prompts/bundle_professional_addendum_final.md`. Keep the skill and those
+runtime prompts aligned. The QX30 v11–v13 repairs are active, while previously
+published results and the five unresolved human-review holds remain historical
+or unresolved; they are not silently recoded as no-issue cases.
+
 ## Purpose and non-goals
 
 Use this skill to connect contract or bidding evidence to retrieved Chinese legal and regulatory evidence through a traceable chain:
@@ -35,6 +43,15 @@ Before reasoning, require or explicitly record the absence of:
 
 Do not invent a missing identifier, page, article, attachment, version, relationship, score, search result, or API call.
 
+Lock the task before drawing a conclusion. Distinguish (a) a tender clause's
+own legal effect, (b) a bid document's own legal compliance, and (c) whether
+the bid responds to a particular tender requirement. The third task requires
+two-source document comparison; a tender requirement is not itself law.
+Technical merit, bill-of-quantities arithmetic, award outcome and later
+performance require separate tasks and evidence. Record the exact reviewed
+documents and unreviewed pages. An accepted or winning bid is not proof of
+each clause's compliance.
+
 If source documents may be sent to a third-party OCR, retrieval, or LLM service, require explicit authorization for that data flow and follow the stated redaction boundary. Never expose API keys or secrets in prompts, outputs, logs, or artifacts.
 
 ## 2. Evidence contract
@@ -46,6 +63,9 @@ If source documents may be sent to a third-party OCR, retrieval, or LLM service,
 - Record referenced but unavailable attachments, drawings, bills, system records, or later versions as evidence gaps.
 - “No evidence found” is not evidence that something does not exist.
 - Visible factual inconsistencies may be reported, but do not convert them into legal violations without admitted legal evidence.
+- Separate `file_package_confirmed_missing`, `current_input_not_transmitted`,
+  `parse_unreadable`, legal-source gaps and future-event facts. Search an
+  already received document before claiming it is absent from the package.
 
 ### 2.2 Legal evidence
 
@@ -75,7 +95,8 @@ The corpus item concerning GB/T 50500—2024 is currently `S2 / practice_materia
 
 - retain it as `reference_only` for human review;
 - set `reference_purpose=out_of_scope_context_only` when the issue is outside the current corpus;
-- use `conclusion_type=insufficient_information`;
+- use `conclusion_type=insufficient_information_needs_human_confirm` when
+  that reference-only material cannot answer the locked legal question;
 - use `evidence_boundary=not_supported_by_current_corpus`;
 - do not present it as independent legal authority.
 
@@ -92,6 +113,13 @@ Use the registered local corpus in this order:
 
 Within one level, use `primary_candidate` before `supplementary_document`. A supplement cannot independently establish a definitive legal consequence.
 
+The active retriever quarantines a known outdated Level-3 source even when
+the project date is unknown. For a verified 2022 event date it admits only
+three checked replacement articles; this is **not** complete coverage of that
+regulation. Other dates receive no replacement from the partial snapshot.
+Record the as-of date and `source_version_audit`; never cite the retired text
+as current law or count a quarantined source as a negative legal finding.
+
 ### 3.2 Sequential retrieval state machine
 
 For each independent issue, retrieve strictly in this order:
@@ -106,7 +134,9 @@ Classify each level as exactly one of:
 - `no_usable_violation_found`: no relevant admitted chunk, no usable locator, or no supported inconsistency. Continue to the next level.
 - `relevant_but_inconclusive`: relevant material exists but scope, version, conflict, jurisdiction, or a key element remains unresolved. Retain it and continue for supplementary evidence; do not upgrade lower material into a higher-level legal conclusion.
 
-Do not return `insufficient_information` merely because Level 1 or Level 2 has no hit. Complete every applicable level. Conversely, do not record a blocked Level 4 search as “searched and no issue found.”
+Do not return `insufficient_information_needs_human_confirm` merely because
+Level 1 or Level 2 has no hit. Complete every applicable level. Conversely,
+do not record a blocked Level 4 search as “searched and no issue found.”
 
 The per-level audit must include:
 
@@ -138,7 +168,8 @@ Use one status:
 
 Only `matched` Level 4 evidence can independently support `requires_human_legal_review`. If Level 1–3 provides no usable evidence and the only Level 4 source is missing, mismatched, or unverified on applicability:
 
-- return `insufficient_information`;
+- return `insufficient_information_needs_human_confirm` for the blocked legal
+  sub-question;
 - keep `evidence_support_confidence` no higher than `low`;
 - set `applicability_confidence` to `low` or `insufficient_information`;
 - retain the source and the applicability gap for human review.
@@ -170,7 +201,13 @@ Attach this exact warning:
 
 > 此内容缺乏物理页码定位，仅供补充参考，不能作为独立法律依据。
 
-If a finding depends on this pool, return `requires_human_legal_review` or `insufficient_information`, never a definitive result. Exclude `excluded_pending_review`, `control_only`, `range_only`, non-text, and otherwise inadmissible blocks from legal-evidence retrieval.
+If a finding depends on this pool, return `requires_human_legal_review` only
+when other admitted law and located document facts independently support a
+specific potential contrary effect; otherwise use the task-bound
+`insufficient_information_needs_human_confirm`. Never use the pool as an
+independent legal basis. Exclude `excluded_pending_review`, `control_only`,
+`range_only`, non-text, and otherwise inadmissible blocks from legal-evidence
+retrieval.
 
 ## 4. External retrieval
 
@@ -209,6 +246,16 @@ Apply this sequence separately to every issue.
 
 Extract the exact document fact and locator. Identify missing, conflicting, or cross-document evidence. Do not infer that an omitted item is absent unless the input explicitly says it is missing or provides a located contrary fact.
 
+For a clause-design question, analyse its conditional legal effect:
+`trigger T → document effect E`, then compare it with the applicable rule's
+effect `R` for the same actor, conditions and phase. Lack of proof that T has
+actually occurred does not stop this textual analysis. Check actual notices,
+filings or later performance only if the locked task asks for those events.
+Read Level 1 as governing law and Level 2 as compatible implementation detail
+where they address the same duty; first test whether both can operate together.
+Different wording or failure to restate every statutory procedure is not,
+by itself, a concrete contrary effect.
+
 ### Step 2 — Identify obligation phase and lifecycle
 
 Set:
@@ -234,7 +281,20 @@ Mark each element `supported | missing | conflicting | not_applicable`:
 - `jurisdiction_and_scope`;
 - `legal_consequence`.
 
-If a decisive element is missing or conflicting, do not claim definitive compliance or non-compliance. A specific potential inconsistency supported by admitted Level 1–4 evidence still goes to `requires_human_legal_review`; use `insufficient_information` only when no usable evidence forms a specific risk relationship.
+If a decisive element is missing or conflicting, do not claim definitive
+compliance or non-compliance. A specific potential inconsistency supported by
+admitted Level 1–4 evidence still goes to `requires_human_legal_review`;
+use `insufficient_information_needs_human_confirm` only for the blocked,
+task-bound legal sub-question.
+
+For each proposed legal U, record the locked sub-question, precisely missing
+material, its provenance, why that material is necessary for *this* claim,
+and the comparison that would become possible if supplied. The independent
+`task_gap_audit` must substantiate a decisive task-bound gap. A non-decisive
+follow-up, a future event outside a clause-design question, or a pure
+out-of-scope task cannot trigger U. Separate answered and blocked
+sub-conclusions; do not turn a rejected U into N without finishing the
+comparison. A mixed material/relationship entry must be split for review.
 
 ### Step 5 — Resolve conflicts conservatively
 
@@ -250,14 +310,31 @@ For general/specific provisions, old/new versions, hierarchy, or scope conflicts
 
 Use this precedence:
 
-1. `requires_human_legal_review`: admitted Level 1–4 evidence and located contract facts form a specific potential inconsistency, conflict, applicability question, or professional-interpretation issue.
-2. `no_supported_issue_found_within_review_scope`: sequential checking is complete, at least one usable legal source participated, and current evidence does not support a risk relationship.
-3. `insufficient_information`: sequential checking is complete but no admitted, locatable source covers the issue, or only supplement-only, warning, unverified external, blocked local, or otherwise inadmissible material remains.
+1. `requires_human_legal_confirm`: only a separately trusted, runtime-bound
+   fact–law validation can establish the stronger state; the model cannot
+   self-assert it.
+2. `requires_human_legal_review`: admitted, applicable Level 1–4 evidence
+   and located contract facts establish a specific **potential contrary legal
+   effect** for the same actor, trigger and phase. Mere relevance, different
+   words, applicability uncertainty or a missing future-performance record
+   is not sufficient.
+3. `no_supported_issue_found_within_review_scope`: applicable legal evidence
+   and the locked, answerable comparison have been checked and no supported
+   contrary effect was found. This is a bounded result, never certification
+   of the whole file or the actual procedure.
+4. `insufficient_information_needs_human_confirm`: the locked claim has a
+   verified decisive fact, applicability, source or readability gap; report
+   which sub-conclusion is blocked.
+5. `no_applicable_legal_basis_found_needs_human_confirm`: only the separately
+   audited complete-search conditions in the active prompt permit this
+   narrower state. A limited one-shot no-hit is insufficient.
 
-In the 60-item evaluation, canonicalise item 3 to
-`insufficient_information_needs_human_confirm`, use it to trigger the one-shot
-external recheck, and preserve it when that recheck adds no independently
-admissible evidence.
+In the frozen 60-item evaluation, use
+`insufficient_information_needs_human_confirm` to trigger the one-shot
+external recheck and preserve it when that recheck adds no independently
+admissible evidence. Other complete-file runs must report their actual
+external configuration and calls; do not infer an external search from this
+historical policy.
 
 `potential_risk` may remain an intermediate or risk-category label, but it is not the final conclusion when admitted legal evidence supports a specific risk; normalise that case to `requires_human_legal_review`.
 
@@ -271,10 +348,9 @@ If `compliance_relation=explicitly_satisfied`, use:
 
 Limit that result to the checked obligation and phase; never call the whole project compliant.
 
-If `compliance_relation=out_of_scope_reference`, use:
-
-- `conclusion_type=insufficient_information`;
-- `evidence_boundary=not_supported_by_current_corpus`.
+If `compliance_relation=out_of_scope_reference`, preserve the out-of-scope
+boundary and any relevant reference-only material. Do not use it to assert a
+legal violation or force U for a different, answerable locked sub-question.
 
 Retain relevant S2 material only as reference.
 
@@ -295,7 +371,10 @@ Severity bases:
 
 - `direct_mandatory_conflict`: a located fact directly conflicts with a mandatory Level 1–3 threshold, prohibition, or numerical requirement; `high` is permitted only when fact, source, and applicability are clear.
 - `procedural_or_temporal_concern`: procedure, timing, or wording may conflict but context remains incomplete; normally no higher than `medium`.
-- `missing_document_only`: a proof or attachment is not included in the excerpt, without proof of actual absence; normally no higher than `medium` and often `insufficient_information`.
+- `missing_document_only`: a proof or attachment is not included in the
+  excerpt, without proof of actual absence; this is not a risk by itself and
+  becomes legal U only if independently verified as decisive for the locked
+  sub-question.
 - `scope_or_version_uncertainty`: main uncertainty concerns territory, scope, version, or status; normally no higher than `medium`.
 - `no_supported_issue`: the checked requirement is explicitly satisfied; severity must be `informational`.
 
@@ -311,10 +390,20 @@ Treat model output as a candidate, not the final result. The gate must:
 - verify every legal quote, chunk ID, source role, level, locator, and admission status;
 - enforce conclusion precedence and Level 4 applicability rules;
 - prevent Level 1–3 supported risks from being downgraded solely because general jurisdiction context is missing;
-- prevent unmatched or unverified Level 4-only evidence from being upgraded beyond `insufficient_information`;
+- prevent unmatched or unverified Level 4-only evidence from being upgraded
+  beyond task-bound `insufficient_information_needs_human_confirm`;
 - downgrade or block unsupported severity and legal consequences;
 - rebuild `review_table` and `table_markdown` deterministically from validated findings;
 - mark every output for human second review.
+
+Run the task-mode/child-conclusion protocol and independent gap audit before
+the legal-U decision. JSON truncation, transport failure, missing bindings,
+source-processing failure and schema rejection are **processing/protocol
+holds**, not legal U, N or risk findings. Keep the raw response and failure
+class. A bounded two-source textual response check may run without a legal
+LLM call; it reports matched/different text with authentic locators and must
+not claim legal sufficiency or entire-bid responsiveness. A textual difference
+is a human-review observation, not automatically a legal risk.
 
 If valid findings cannot be formed, return a valid root object with `findings=[]`, record the cause in `project_summary.evidence_gaps`, and produce a blocked safe result for human review.
 
@@ -365,7 +454,7 @@ Allowed finding values:
 
 - `risk_category`: `potential_non_compliance | missing_or_insufficient_evidence | internal_inconsistency | ambiguity_or_unclear_obligation | temporal_or_version_uncertainty | cross_document_link_missing_or_inconsistent | out_of_scope_or_unverifiable | no_issue_identified`;
 - `risk_severity`: `informational | low | medium | high | critical`;
-- `conclusion_type`: `potential_risk | no_supported_issue_found_within_review_scope | insufficient_information | requires_human_legal_review`;
+- `conclusion_type`: `requires_human_legal_confirm | requires_human_legal_review | insufficient_information_needs_human_confirm | no_applicable_legal_basis_found_needs_human_confirm | no_supported_issue_found_within_review_scope`;
 - `evidence_boundary`: `supported_by_primary_local_source | supported_by_multiple_local_levels | supported_by_supplementary_source_only | supported_by_verification_pending_source | partially_supported | not_supported_by_current_corpus | requires_human_legal_review`;
 - `human_review_status`: `review_required | insufficient_information`;
 - `review_processing_label`: `accepted | revised | rejected`.
@@ -407,7 +496,10 @@ For a possible rejection or other adverse outcome, say “建议人工审查是�
 
 For `no_supported_issue_found_within_review_scope`, say that current scope does not contain sufficiently supported risk and recommend not treating the item as a risk for now, while preserving the scope limitation.
 
-For `insufficient_information`, identify the missing document, location, project type, official standard, version, or professional evidence. Keep candidate references and their limitations visible rather than fabricating an empty legal basis.
+For `insufficient_information_needs_human_confirm`, identify the specific
+decisive missing input, applicable rule, version or unreadable material and
+the blocked sub-conclusion. Keep candidate references and their limitations
+visible rather than fabricating an empty legal basis.
 
 State beside the table that all results are for human second review only.
 
@@ -445,6 +537,8 @@ Before delivery, verify:
 - the minimum useful human action is stated;
 - unassessed drawings, BIM, scanned images, missing attachments, and local applicability are listed.
 
-If a critical check fails, lower confidence and use `insufficient_information` or `requires_human_legal_review`; never fill missing evidence from model knowledge.
+If a critical check fails, distinguish a verified task-bound legal gap from a
+processing/protocol failure and from a concrete reviewable risk. Never fill
+missing evidence from model knowledge or recode a processing hold as legal U.
 
 Preserve the original model result, gate-normalised result, cited evidence, human revision, and revision reason as an auditable record. Every risk finding goes to human review. The human reviewer may accept, revise, reject, or mark it information-insufficient, but the model must never pre-fill a human final decision.

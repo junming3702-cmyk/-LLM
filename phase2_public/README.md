@@ -26,9 +26,25 @@ real tender files, private API payloads, local cache paths or credentials.
 5. DeepSeek `deepseek-v4-flash` remains the application reasoning model. A
    deterministic post-LLM gate normalises response channels, repairs safe schema
    defects, blocks unsafe outputs and keeps every deliverable under human review.
-   Prompt v10 and recommendation contract v3 additionally require every risk
+   Active Prompt v11 and recommendation contract v3 require every risk
    recommendation to show the located contract text, the admitted legal
    requirement, their concrete difference, and the recommended human action.
+6. The approved QX30 repairs are now in the active runtime: a locked
+   clause-design question compares conditional legal effects rather than word
+   overlap or hypothetical future conduct; a legal U requires an independently
+   audited decisive task-bound gap; transport, schema and source-processing
+   failures stay in separate hold classes. The active full-file addendum uses
+   the same professional legal-effect and three-layer gap vocabulary as the
+   gate. The answer-free duration query expansion is enabled by default.
+7. A known outdated Level-3 source is quarantined for all dates. With an
+   explicit 2022 project date, only three checked replacement articles are
+   admitted, not the full regulation. Without a verified matching date, no
+   replacement is admitted. Source-version coverage is recorded in the run
+   audit; missing coverage is not counted as a no-issue finding.
+8. Explicit tender-to-bid textual response questions can use a separate,
+   bounded two-source comparison path. Matching selected numbers alone cannot
+   assert full textual identity or legal sufficiency. Differences go to human
+   review and never become automatic legal violations.
 
 ## Operational result states
 
@@ -49,7 +65,9 @@ Every state retains `requires_human_second_review` as the overall delivery statu
 - `src/`: ingestion, strict retrieval, external fallback, LLM response parsing,
   deterministic gate, evaluation and Excel export;
 - `tests/`: offline gate, parser and external-fallback regression tests;
-- `prompts/system_prompt_final.md`: active reasoning and output contract;
+- `prompts/system_prompt_final.md`: active v11 reasoning and output contract;
+- `prompts/bundle_professional_addendum_final.md`: active full-file
+  professional review and typed-gap addendum;
 - `skill/evidence-grounded-contract-review/SKILL.md`: the same policy organised
   as a reusable skill;
 - `data/gold/`: the frozen 60-item synthetic development set and schemas;
@@ -61,10 +79,10 @@ Every state retains `requires_human_second_review` as the overall delivery statu
   candidate discovery, tender-to-bid matching, legal/pair reasoning routes and
   human-review assembly. Development-fixture checks only; not independently
   validated or production-enabled;
-- `candidates/qx30_approved_repair_v13/`: approved formative repair readout for
-  source-date/numbering, Level-2 evidence delivery, narrow text comparison,
-  unchanged risk alerts, and typed remaining holds. The repair paths are opt-in;
-  private QX excerpts and API responses are not included;
+- `candidates/qx30_approved_repair_v13/`: frozen formative readout that
+  preceded the active promotion. It records source-date/numbering, Level-2
+  evidence delivery, narrow text comparison, unchanged risk alerts, and typed
+  remaining holds. Private QX excerpts and API responses are not included;
 - `evaluation/`: benchmark summaries and the separate expert-review protocol;
 - `evaluation/reasoning/full60_one_shot_external_recheck_protocol_v1.md`: the
   active 60-item external-recheck sequence and audit contract;
@@ -91,3 +109,11 @@ The 60 synthetic issues are a development benchmark, not 60 real projects and
 not an independently adjudicated legal-verdict dataset. The real-project branch
 is retained privately and is not mixed into synthetic metric denominators. Expert
 validation remains a separate, ethics-gated study.
+
+The QX30 risk candidates U12, U23, U25 and U26 were approved for **human
+review**, not established as final violations. U01's Level-2 basis and U28's
+bounded text comparison no longer default to a legal-U route. The five
+remaining holds U08, U13, U19, U20 and U21 are not automatically changed to
+`no_supported_issue_found_within_review_scope`. Promotion was checked with
+offline regression tests; no new independent effectiveness or complete-file
+accuracy estimate follows from it. Existing result files are not overwritten.

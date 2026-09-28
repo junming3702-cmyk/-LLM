@@ -45,7 +45,13 @@ from external_fallback_v2 import (
 from conclusion_contract_v2 import INSUFFICIENT_INFORMATION_NEEDS_HUMAN_CONFIRM
 from llm_abstention_gate import apply_gate, processing_hold
 from task_subconclusion_v1 import apply_task_gate, prompt_addendum as task_prompt_addendum
-from task_text_comparison_v1 import compare as compare_locked_text
+from task_text_comparison_v1 import (
+    build_contract_from_runtime, compare as compare_locked_text, route_task as route_text_task,
+)
+from task_gap_protocol_v1 import (
+    VERSION as TASK_GAP_VERSION, attach_audit as attach_task_gap_audit,
+    prompt_addendum as task_gap_prompt_addendum,
+)
 from bundle_legal_review_v1 import (
     assess_protocol as assess_bundle_review_protocol,
     build_task_contract as build_bundle_task_contract,
@@ -476,17 +482,52 @@ def run_final_reasoning(
 
     text_contract = runtime_input.get("task_text_comparison_contract_v1")
     task_contract = runtime_input.get("task_subconclusion_contract_v1")
+    task_v2 = runtime_input.get("review_task_contract_v2") or {}
+    if task_v2 and (task_contract is not None or runtime_input.get("review_task_contract_v1") is not None):
+        return ({"ok": False, "model_requested": "none", "finish_reason": "not_called",
+                 "usage": {"prompt_tokens": 0, "completion_tokens": 0}},
+                processing_hold(None, runtime_input, "multiple_task_contract_versions",
+                                failure_class="task_protocol_failure"))
+    if text_contract is None and task_v2 and task_contract is None:
+        excerpt = str((runtime_input.get("contract_evidence") or {}).get("document_excerpt") or "")
+        if route_text_task(task_v2, excerpt)["route"] == "text_response_comparison":
+            try:
+                text_contract = build_contract_from_runtime(runtime_input)
+            except (KeyError, TypeError, ValueError) as exc:
+                reason = "text_pair_input_cannot_be_bound:" + str(exc)
+                return ({"ok": False, "model_requested": "none", "finish_reason": "not_called",
+                         "usage": {"prompt_tokens": 0, "completion_tokens": 0}},
+                        processing_hold(None, runtime_input, reason,
+                                        failure_class="source_processing_failure"))
+            runtime_input["task_text_comparison_contract_v1"] = text_contract
     if text_contract is not None:
         if task_contract is not None or runtime_input.get("review_task_contract_v1") is not None:
-            raise ValueError("legal_observation_and_text_contracts_cannot_share_one_call")
+            return ({"ok": False, "model_requested": "none", "finish_reason": "not_called",
+                     "usage": {"prompt_tokens": 0, "completion_tokens": 0}},
+                    processing_hold(None, runtime_input, "legal_and_text_contracts_cannot_share_one_call",
+                                    failure_class="task_protocol_failure"))
         # A locked text-only comparison has no reason to consume legal LLM tokens.
         result = compare_locked_text(text_contract)
         return ({"ok": True, "model_requested": "none", "finish_reason": "deterministic",
                  "parsed": None, "usage": {"prompt_tokens": 0, "completion_tokens": 0}}, result)
     if task_contract is not None and runtime_input.get("review_task_contract_v1") is not None:
-        raise ValueError("legal_and_observation_task_contracts_cannot_share_one_call")
+        return ({"ok": False, "model_requested": "none", "finish_reason": "not_called",
+                 "usage": {"prompt_tokens": 0, "completion_tokens": 0}},
+                processing_hold(None, runtime_input, "legal_and_observation_contracts_cannot_share_one_call",
+                                failure_class="task_protocol_failure"))
+    if task_v2 and task_contract is None:
+        if "task_gap_audit" not in runtime_input:
+            runtime_input.update(attach_task_gap_audit(runtime_input))
+        elif runtime_input.get("task_gap_audit_version") != TASK_GAP_VERSION:
+            return ({"ok": False, "model_requested": "none", "finish_reason": "not_called",
+                     "usage": {"prompt_tokens": 0, "completion_tokens": 0}},
+                    processing_hold(None, runtime_input, "task_gap_audit_version_mismatch",
+                                    failure_class="task_protocol_failure"))
+        runtime_input["gate_protocol_version"] = "task-aware-v1"
     # Do not feed a legal-verdict system prompt to a pure observation task.
     system_prompt = task_prompt_addendum() if task_contract is not None else prompt
+    if task_v2 and task_contract is None and "## Task-aware legal-U and independent gap ledger" not in system_prompt:
+        system_prompt += task_gap_prompt_addendum()
     response = model_request(
         api_key,
         system_prompt,
@@ -602,7 +643,7 @@ def run_case(
     compact_final_output: bool,
     experiment_run_id: str,
     external_fallback: ExternalFallbackStateMachine | None = None,
-    duration_query_expansion: bool = False,
+    duration_query_expansion: bool = True,
 ) -> dict[str, Any]:
     if label.get("review_task_kind") == "bid_responsiveness":
         raise ValueError("bid_responsiveness_requires_pair_reasoner_not_legal_cascade")
@@ -1159,9 +1200,12 @@ def main() -> int:
     parser.add_argument("--output-root", type=Path, default=OUT_ROOT)
     parser.add_argument("--embedding-model", default=DEFAULT_EMBEDDING_MODEL)
     parser.add_argument("--as-of-date", default=None,
-                        help="Opt in to the audited, 2022-only departmental-source correction")
-    parser.add_argument("--enable-duration-query-expansion", action="store_true",
-                        help="Opt in to answer-free document-acquisition-duration synonyms")
+                        help="Project event date (YYYY-MM-DD); stale law is quarantined if omitted")
+    parser.add_argument("--enable-duration-query-expansion", dest="duration_query_expansion",
+                        action="store_true", default=True,
+                        help="Use the active answer-free acquisition-period query expansion")
+    parser.add_argument("--disable-duration-query-expansion", dest="duration_query_expansion",
+                        action="store_false", help="Legacy comparison only; record this change in the run")
     parser.add_argument("--all-issues", action="store_true")
     parser.add_argument("--approve-bundle-transmission", action="store_true",
                         help="Explicitly acknowledge authorized transmission of this bundle's excerpts")
@@ -1238,7 +1282,7 @@ def main() -> int:
         "corpus": str(CORPUS_FILE),
         "corpus_sha256": retriever.corpus_sha256,
         "source_version_audit": retriever.source_version_audit,
-        "duration_query_expansion": args.enable_duration_query_expansion,
+        "duration_query_expansion": args.duration_query_expansion,
         "embedding_model": retriever.embedding_model_name,
         "embedding_model_source": str(retriever.embedding_model_source),
         "embedding_loading": "local_snapshot_only_no_network_fallback",
@@ -1304,7 +1348,7 @@ def main() -> int:
             compact_final_output=args.compact_final_output,
             experiment_run_id=args.run_id,
             external_fallback=external_fallback,
-            duration_query_expansion=args.enable_duration_query_expansion,
+            duration_query_expansion=args.duration_query_expansion,
         )
         result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
         manifest["results"].append(

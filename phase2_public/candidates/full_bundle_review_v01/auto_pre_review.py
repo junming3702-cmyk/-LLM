@@ -463,15 +463,17 @@ def summarize(bundle_dir: Path, core_dir: Path | None = None, pair_dir: Path | N
 def online_executors(*, final_max_tokens: int, triage_max_tokens: int, pair_max_tokens: int,
                      compact_final_output: bool,
                      top_k: int, run_id: str, enable_external_fallback: bool,
-                     external_manifest: Path | None) -> tuple[Callable, Callable, dict[str, Any]]:
+                     external_manifest: Path | None,
+                     as_of_date: str | None = None) -> tuple[Callable, Callable, dict[str, Any]]:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
     from run_deepseek_llm_reasoning_smoke import load_api_key  # noqa: PLC0415
     from run_hierarchy_gated_llm_smoke import (  # noqa: PLC0415
         PROMPT_FILE, StrictHierarchyHybridRetriever, ExternalFallbackStateMachine,
         build_external_provider, load_external_manifest, run_case,
     )
+    from bundle_legal_review_v1 import prompt_addendum as bundle_review_prompt_addendum  # noqa: PLC0415
     api_key = load_api_key()
-    retriever = StrictHierarchyHybridRetriever()
+    retriever = StrictHierarchyHybridRetriever(as_of_date=as_of_date)
     prompt = PROMPT_FILE.read_text(encoding="utf-8")
     entries = load_external_manifest(external_manifest) if enable_external_fallback and external_manifest else []
     if enable_external_fallback and not entries:
@@ -489,8 +491,12 @@ def online_executors(*, final_max_tokens: int, triage_max_tokens: int, pair_max_
         return run_pair_online(label, api_key, pair_max_tokens)
 
     provenance = {"legal_prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+                  "bundle_professional_addendum_sha256": hashlib.sha256(
+                      bundle_review_prompt_addendum().encode("utf-8")).hexdigest(),
                   "pair_prompt_sha256": hashlib.sha256(PAIR_PROMPT.encode("utf-8")).hexdigest(),
                   "law_corpus_sha256": retriever.corpus_sha256,
+                  "source_version_audit": retriever.source_version_audit,
+                  "duration_query_expansion": True,
                   "embedding_model": retriever.embedding_model_name,
                   "external_manifest_sha256": file_sha256(external_manifest) if enable_external_fallback else None}
     return legal, pair, provenance
@@ -522,6 +528,8 @@ def main() -> int:
     parser.add_argument("--run-id", default="automatic-preliminary-bundle-review")
     parser.add_argument("--enable-external-fallback", action="store_true")
     parser.add_argument("--external-manifest", type=Path)
+    parser.add_argument("--as-of-date", default=None,
+                        help="Project event date YYYY-MM-DD; known outdated law is quarantined when missing")
     args = parser.parse_args()
     args.output_root.mkdir(parents=True, exist_ok=True)
     if args.mode == "plan":
@@ -571,7 +579,8 @@ def main() -> int:
                                                     compact_final_output=args.compact_final_output,
                                                     pair_max_tokens=args.pair_max_tokens, top_k=args.top_k,
                                                     run_id=args.run_id, enable_external_fallback=args.enable_external_fallback,
-                                                    external_manifest=args.external_manifest)
+                                                    external_manifest=args.external_manifest,
+                                                    as_of_date=args.as_of_date)
         settings = {"model": "deepseek-v4-flash", "legal_final_max_tokens": args.final_max_tokens,
                     "legal_triage_max_tokens": args.triage_max_tokens,
                     "compact_final_output": args.compact_final_output,

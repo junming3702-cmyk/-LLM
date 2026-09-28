@@ -15,7 +15,7 @@ import re
 
 
 VERSION = "task-text-comparison-v1"
-MODES = {"decimal", "literal_normalized"}
+MODES = {"decimal", "literal_normalized", "literal_whitespace_only"}
 
 
 def _digest(value: object) -> str:
@@ -62,6 +62,9 @@ def _normal(value: str, mode: str) -> str | Decimal:
             return Decimal(match.group(1))
         except InvalidOperation as exc:
             raise ValueError("invalid_decimal") from exc
+    if mode == "literal_whitespace_only":
+        # Preserve punctuation and comparison operators: >= is not >.
+        return re.sub(r"\s+", "", value)
     return re.sub(r"[\s\W_]+", "", value, flags=re.UNICODE)
 
 
@@ -118,3 +121,42 @@ def route_task(task: dict, excerpt: str) -> dict:
             "rule_id": "explicit_two_source_text_question_v1", "question_unchanged": True,
             "why": {"text_question": textual_question, "legal_question": legal_question,
                     "two_sources": two_sources}}
+
+
+def build_contract_from_runtime(runtime_input: dict) -> dict:
+    """Lock a conservative whole-excerpt comparison before any legal call.
+
+    Numeric sequence checks are additional observations, never a substitute
+    for the full supplied text. A different phrase remains a human-review
+    difference even if every selected number matches.
+    """
+
+    task = runtime_input.get("review_task_contract_v2") or {}
+    excerpt = str((runtime_input.get("contract_evidence") or {}).get("document_excerpt") or "")
+    if route_task(task, excerpt)["route"] != "text_response_comparison":
+        raise ValueError("text_pair_task_not_locked")
+    markers = list(re.finditer(r"(?m)^\[(TENDER|TECH|BID)-([^\]]+)\][ \t]*\r?\n?", excerpt))
+    if (len(markers) != 2 or markers[0].group(1) != "TENDER"
+            or markers[1].group(1) not in {"TECH", "BID"}):
+        raise ValueError("exact_tender_and_bid_source_markers_required")
+    sources = []
+    for index, marker in enumerate(markers):
+        end = markers[index + 1].start() if index + 1 < len(markers) else len(excerpt)
+        content = excerpt[marker.end():end].strip()
+        if not content or len(content) > 2000:
+            raise ValueError("missing_or_oversized_locked_source_text")
+        sources.append({"source_id": marker.group(0).strip(),
+                        "locator": marker.group(0).strip().strip("[]"),
+                        "text": content})
+    tender, bid = sources
+    checks = [{"field": "whole_supplied_text", "mode": "literal_whitespace_only",
+               "tender_quote": tender["text"], "bid_quote": bid["text"],
+               "tender_start": 0, "bid_start": 0}]
+    tender_numbers = list(re.finditer(r"\d+(?:\.\d+)?", tender["text"]))
+    bid_numbers = list(re.finditer(r"\d+(?:\.\d+)?", bid["text"]))
+    if len(tender_numbers) == len(bid_numbers) and len(tender_numbers) <= 20:
+        for index, (left, right) in enumerate(zip(tender_numbers, bid_numbers, strict=True), start=1):
+            checks.append({"field": f"number_in_order_{index:02d}", "mode": "decimal",
+                           "tender_quote": left.group(), "bid_quote": right.group(),
+                           "tender_start": left.start(), "bid_start": right.start()})
+    return build_contract(runtime_input["issue_id"], task["question_verbatim"], tender, bid, checks)

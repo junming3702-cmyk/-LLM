@@ -438,102 +438,15 @@ def assess_protocol(
 
 
 def prompt_addendum() -> str:
-    """Generate the bundle-only output instruction from the same vocabulary."""
+    """Return the approved, active bundle prompt with schema vocabulary checks."""
 
-    dependency_pairs = json.dumps(DEPENDENCIES, ensure_ascii=False, sort_keys=True)
-    excludable = json.dumps(EXCLUDABLE, ensure_ascii=False)
-    return f"""
-
-## Task-bound professional legal-effect analysis ({VERSION})
-The runtime `review_task_contract_v1` is caller-locked. Copy its
-`contract_sha256` exactly; do not narrow or expand its review question.
-Use an evidence-constrained legal analysis, not word overlap: identify the
-regulated actor, trigger/scope, required conduct, timing, exception or lawful
-remedy, and the stage when the duty operates. Read Level 1 as governing law;
-read Level 2 as implementing detail when it addresses the same obligation.
-Check Level 3 independently for any additional applicable duty. Explain the
-legal effect of the document clause and compare effects only within the locked
-task. A clause's silence about performance records or a non-exclusive duty is
-not proof of nonperformance or contradiction.
-If review_scope.project_location_evidence_status is
-`provided_pending_confirmation`, the place is known but its provenance is
-unconfirmed: do not describe it as "location absent". A located project
-document can establish the place only through the existing applicability
-gate; do not promote any Level 4 candidate merely from this display label.
-
-For example, if a governing law requires written notice at least 15 days
-before a deadline and an implementing regulation directs extension of the
-deadline when a late change affects preparation, a tender clause requiring
-that extension does not contradict the 15-day protection merely because it
-mentions the original deadline. Review the effective extended deadline,
-recipients and actual notices as separate conduct questions. Conversely,
-an express instruction to make the affecting change without extension can be
-a concrete text-level risk. Do not use this example to ignore an express
-recipient exclusion, an independent applicable duty, or a contrary record.
-
-For the one finding, add `professional_review` with exactly these fields:
-{{
-  "protocol_version": "{VERSION}",
-  "task_contract_sha256": "copy review_task_contract_v1.contract_sha256",
-  "claim_id": "{CLAIM_ID}",
-  "applied_legal_chunk_ids": ["only supplied and cited chunk IDs"],
-  "normative_elements": {{
-    "actor": "regulated actor or not established",
-    "trigger_and_scope": "applicability conditions and event",
-    "required_conduct": "substantive duty",
-    "timing_or_threshold": "time/threshold or none in cited rule",
-    "exception_or_cure": "lawful exception/remedy or none in cited rule",
-    "obligation_stage": "clause design, submission, procedure or performance"
-  }},
-  "element_comparisons": [{{
-    "element": "one of {', '.join(COMPARISON_ELEMENTS)}; each exactly once",
-    "relation": "{' | '.join(sorted(ELEMENT_RELATIONS))}",
-    "legal_chunk_id": "applied chunk ID for aligned/concrete_contrary; else empty",
-    "document_quote": "exact current excerpt substring for concrete_contrary; else empty",
-    "explanation": "legal element -> clause effect -> why relation holds"
-  }}],
-  "governing_rule": "higher-level legal effect with chunk IDs",
-  "normative_relation": "{' | '.join(sorted(NORMATIVE_RELATIONS))}",
-  "implementation_effect": "what lower-level rule specifies with its chunk ID, or why none applies",
-  "document_rule": "what the supplied clause legally requires/allows, including its conditions",
-  "legal_effect_relation": "{' | '.join(sorted(EFFECT_RELATIONS))}",
-  "effect_comparison": "rule effect -> document effect -> material equivalence/difference -> boundary",
-  "contrary_document_quote": "exact excerpt substring only for a concrete risk; otherwise empty",
-  "gaps": [{{
-    "gap_id": "G1", "kind": "one material type from dependency_kind_pairs",
-    "dependency_key": "one dependency from the locked contract",
-    "task_relation": "decisive_for_claim | outside_locked_scope | undetermined",
-    "affected_claim_ids": ["{CLAIM_ID} when decisive/undetermined; else empty"],
-    "detail": "one missing material only",
-    "reason": "why this material is relevant to this task",
-    "counterfactual_impact": "which exact judgment changes if supplied",
-    "dependency_trigger": "locked_requirement | observed_context_conflict | explicit_scope_exclusion | generic_unverified_possibility | undetermined",
-    "next_step": "specific human check"
-  }}]
-}}
-Use the existing three-layer dependency/kind pairs and task-relation rules.
-Permitted dependency_key -> kind pairs: {dependency_pairs}
-Outside-scope exclusions permitted for this text task: {excludable}.
-Use `locked_requirement` for a decisive gap only if the caller-locked claim
-requires that dependency; use `explicit_scope_exclusion` for a pure excluded
-follow-up. `comparison_operand` is decisive only when the caller explicitly
-put it in `required_claims[0].required_dependencies`; a future amendment that
-has not happened is not an operand for clause-design review. Split mixed
-materials into separate gaps.
-Keep top-level `legal_element_coverage`, `compliance_relation`,
-`fact_law_comparison` and `conclusion_type` consistent with the element
-comparison. An aligned text-level finding is bounded to this excerpt and
-admitted rules, not a declaration that actual notification, filing or later
-performance occurred. A concrete risk needs an opposite excerpt quote and
-an admitted rule; `fact_law_comparison` must describe their legal-effect
-difference, not merely name an article. If a decisive current-task input is
-missing, mark the affected legal element unresolved and specify its typed gap.
-Do not label a known project location as missing just because its scope
-confirmation is pending.
-For U, at least one `decisive_for_claim` gap must identify a missing input,
-applicable rule, applicability condition, comparison operand or readability
-that blocks THIS claim. An outside-scope follow-up never makes legal U.
-If the relation is undetermined, request scope clarification rather than
-asserting U or N. Malformed/partial output is processing failure, not legal U.
-Keep `reasoning_conclusion` consistent with this structured comparison.
-"""
+    path = PUBLIC_ROOT / "prompts" / "bundle_professional_addendum_final.md"
+    instructions = path.read_text(encoding="utf-8")
+    required_tokens = (
+        VERSION, CLAIM_ID, *DEPENDENCIES.keys(), *COMPARISON_ELEMENTS,
+        *ELEMENT_RELATIONS, *NORMATIVE_RELATIONS, *EFFECT_RELATIONS,
+    )
+    missing = [token for token in required_tokens if token not in instructions]
+    if missing:
+        raise ValueError("active_bundle_prompt_schema_drift:" + ",".join(missing))
+    return "\n\n## Task-bound professional legal-effect analysis\n" + instructions

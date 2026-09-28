@@ -94,3 +94,35 @@ def versioned_2022_corpus(rows: list[dict], *, as_of_date: str,
         "coverage_boundary": snapshot["boundary"],
     }
     return output, audit
+
+
+def active_versioned_corpus(rows: list[dict], *, as_of_date: str | None,
+                            snapshot_path: Path = DEFAULT_SNAPSHOT) -> tuple[list[dict], dict]:
+    """Never expose the known stale source in an active retrieval corpus.
+
+    Only the checked 2022 articles can replace it. For an unknown/other date,
+    quarantine the stale source and report the coverage loss; do not silently
+    treat a partial 2022 correction as a complete or current regulation.
+    """
+
+    if as_of_date is not None:
+        date.fromisoformat(as_of_date)
+    stale = [row for row in rows if row.get("source_id") == OLD_SOURCE_ID]
+    if not stale:
+        return deepcopy(rows), {
+            "policy": "active_versioned_source_v1", "as_of_date": as_of_date,
+            "status": "known_stale_source_not_present", "retired_chunk_ids": [],
+            "corrected_chunk_ids": [],
+        }
+    if as_of_date is not None and CHECKED_START <= date.fromisoformat(as_of_date) <= CHECKED_END:
+        corrected, audit = versioned_2022_corpus(
+            rows, as_of_date=as_of_date, snapshot_path=snapshot_path)
+        return corrected, {"policy": "active_versioned_source_v1",
+                           "status": "targeted_2022_excerpts_admitted", **audit}
+    return ([deepcopy(row) for row in rows if row.get("source_id") != OLD_SOURCE_ID], {
+        "policy": "active_versioned_source_v1", "as_of_date": as_of_date,
+        "status": "stale_source_quarantined_no_verified_replacement",
+        "retired_chunk_ids": sorted(str(row.get("chunk_id")) for row in stale),
+        "corrected_chunk_ids": [],
+        "coverage_boundary": "This departmental regulation is not covered for the supplied date; no outdated article may be cited as current law.",
+    })
