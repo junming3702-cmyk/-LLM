@@ -43,7 +43,8 @@ from external_fallback_v2 import (
     load_external_manifest,
 )
 from conclusion_contract_v2 import INSUFFICIENT_INFORMATION_NEEDS_HUMAN_CONFIRM
-from llm_abstention_gate import apply_gate
+from llm_abstention_gate import apply_gate, processing_hold
+from task_subconclusion_v1 import apply_task_gate, prompt_addendum as task_prompt_addendum
 from bundle_legal_review_v1 import (
     assess_protocol as assess_bundle_review_protocol,
     build_task_contract as build_bundle_task_contract,
@@ -472,9 +473,14 @@ def run_final_reasoning(
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Run one final-reasoning pass and apply the deterministic gate."""
 
+    task_contract = runtime_input.get("task_subconclusion_contract_v1")
+    if task_contract is not None and runtime_input.get("review_task_contract_v1") is not None:
+        raise ValueError("legal_and_observation_task_contracts_cannot_share_one_call")
+    # Do not feed a legal-verdict system prompt to a pure observation task.
+    system_prompt = task_prompt_addendum() if task_contract is not None else prompt
     response = model_request(
         api_key,
-        prompt,
+        system_prompt,
         runtime_input,
         max_tokens=max_tokens,
         response_contract="final_review",
@@ -482,9 +488,24 @@ def run_final_reasoning(
         reasoning_effort="low",
     )
     raw: Any = response.get("parsed")
+    if response.get("ok") is False:
+        gate_result = processing_hold(response.get("selected_text", ""), runtime_input,
+                                      "llm_transport_or_http_failure_not_legal_u",
+                                      failure_class="transport_failure")
+        return response, require_cross_level_reconciliation(gate_result, runtime_input)
+    if response.get("finish_reason") == "length":
+        gate_result = processing_hold(response.get("selected_text", ""), runtime_input,
+                                      "llm_output_truncated_not_legal_u",
+                                      failure_class="truncated_output")
+        return response, require_cross_level_reconciliation(gate_result, runtime_input)
     if raw is None:
-        raw = response.get("selected_text", "")
-    gate_result = apply_gate(raw, runtime_input)
+        gate_result = processing_hold(response.get("selected_text", ""), runtime_input,
+                                      "llm_final_json_unparseable_not_legal_u",
+                                      failure_class="invalid_json")
+        return response, require_cross_level_reconciliation(gate_result, runtime_input)
+    gate_result = (apply_task_gate(raw, task_contract,
+                                   finish_reason=response.get("finish_reason"), transport_ok=response.get("ok") is True)
+                   if task_contract is not None else apply_gate(raw, runtime_input))
     return response, require_cross_level_reconciliation(gate_result, runtime_input)
 
 
@@ -497,6 +518,8 @@ def require_cross_level_reconciliation(
     Level-1 violation stops the cascade and cannot meet this condition.
     """
 
+    if runtime_input.get("task_subconclusion_contract_v1") is not None:
+        return gate_result
     # The full-bundle route uses a locked task and a legal-effect comparison,
     # including typed decisive gaps. Keep the frozen single-issue guard below
     # for historical/non-bundle callers; do not overload conflict_note with
@@ -542,6 +565,8 @@ def require_cross_level_reconciliation(
             )
             return {
                 "status": "blocked", "blocked": True,
+                "failure_class": "cross_level_protocol_failure",
+                "legal_conclusion_available": False,
                 "actions": list(gate_result.get("actions", [])) + [reason],
                 "raw_response": gate_result.get("raw_response"),
                 "pre_reconciliation_gate_status": gate_result.get("status"),

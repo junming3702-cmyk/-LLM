@@ -39,7 +39,6 @@ REQUIRED_DEPENDENCIES = (
     "current_clause_context",
     "applicable_rule",
     "regulatory_applicability",
-    "comparison_operand",
     "readability",
 )
 NORMATIVE_RELATIONS = {
@@ -79,16 +78,26 @@ def build_task_contract(label: dict[str, Any]) -> dict[str, Any] | None:
     if kind not in TASK_KINDS:
         raise ValueError(f"unsupported_bundle_legal_task:{kind}")
     mode = "clause_design"
+    # An unknown future amendment or actual performance record is not a
+    # decisive gap in a clause-design question. A second operand is required
+    # only when the caller locks an actual two-sided comparison before review.
+    requires_operand = label.get("requires_comparison_operand", False)
+    if not isinstance(requires_operand, bool):
+        raise ValueError("requires_comparison_operand_must_be_boolean")
+    dependencies = list(REQUIRED_DEPENDENCIES)
+    if requires_operand:
+        dependencies.append("comparison_operand")
     contract = {
         "version": VERSION,
         "issue_id": label["issue_id"],
         "review_task_kind": kind,
         "review_mode": mode,
+        "requires_comparison_operand": requires_operand,
         "review_target": TASK_MODES[mode]["target"],
         "question": TASK_KINDS[kind],
         "required_claims": [{
             "claim_id": CLAIM_ID,
-            "required_dependencies": list(REQUIRED_DEPENDENCIES),
+            "required_dependencies": dependencies,
         }],
         "excluded_from_this_text_task": list(EXCLUDABLE),
         "document_evidence_id": "CURRENT_DOCUMENT_EXCERPT",
@@ -167,7 +176,8 @@ def _validate_gap(gap: Any, contract: dict[str, Any], seen: set[str]) -> tuple[l
         affected = []
     rule = RELATION_RULES[relation]
     if relation == "decisive_for_claim":
-        if affected != [CLAIM_ID] or dep not in REQUIRED_DEPENDENCIES:
+        required = contract["required_claims"][0]["required_dependencies"]
+        if affected != [CLAIM_ID] or dep not in required:
             errors.append("gap_not_bound_to_required_dependency")
     elif relation == "outside_locked_scope":
         if affected or dep not in contract["excluded_from_this_text_task"]:
@@ -200,6 +210,16 @@ def assess_protocol(
     if not isinstance(contract, dict):
         return gate_result
     result = deepcopy(gate_result)
+    if _sha({key: value for key, value in contract.items() if key != "contract_sha256"}) != contract.get("contract_sha256"):
+        result["status"] = "blocked"
+        result["blocked"] = True
+        result["failure_class"] = "task_contract_integrity_failure"
+        result["legal_conclusion_available"] = False
+        result["professional_review_v1"] = {
+            "status": "protocol_hold", "errors": ["task_contract_digest_mismatch"],
+            "u_cause_codes": [], "legal_semantics_verified": False,
+        }
+        return result
     if result.get("blocked"):
         result["professional_review_v1"] = {
             "status": "upstream_processing_hold", "u_cause_codes": [],
@@ -408,6 +428,8 @@ def assess_protocol(
     if errors:
         result["status"] = "blocked"
         result["blocked"] = True
+        result["failure_class"] = "professional_protocol_failure"
+        result["legal_conclusion_available"] = False
         result["actions"] = list(result.get("actions", [])) + [
             "professional_review_v1: " + "; ".join(errors)
         ]
@@ -494,7 +516,10 @@ Permitted dependency_key -> kind pairs: {dependency_pairs}
 Outside-scope exclusions permitted for this text task: {excludable}.
 Use `locked_requirement` for a decisive gap only if the caller-locked claim
 requires that dependency; use `explicit_scope_exclusion` for a pure excluded
-follow-up. Split mixed materials into separate gaps.
+follow-up. `comparison_operand` is decisive only when the caller explicitly
+put it in `required_claims[0].required_dependencies`; a future amendment that
+has not happened is not an operand for clause-design review. Split mixed
+materials into separate gaps.
 Keep top-level `legal_element_coverage`, `compliance_relation`,
 `fact_law_comparison` and `conclusion_type` consistent with the element
 comparison. An aligned text-level finding is bounded to this excerpt and

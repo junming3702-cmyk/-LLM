@@ -837,12 +837,12 @@ def _minimal_response(runtime_input: dict, reason: str) -> dict:
         "test_result": "blocked",
         "contract_original_text": runtime_input.get("contract_evidence", {}).get("document_excerpt", ""),
         "conclusion": {
-            "conclusion_type": INSUFFICIENT_INFORMATION_NEEDS_HUMAN_CONFIRM,
+            "conclusion_type": None,
             "text": reason,
         },
-        "risk_category": "missing_or_insufficient_evidence",
+        "risk_category": "processing_or_protocol_failure",
         "legal_basis": [],
-        "evidence_boundary": "not_supported_by_current_corpus",
+        "evidence_boundary": "not_assessed_due_to_processing_hold",
         "assistant_recommendation": {
             "substantive_conclusion": "当前模型结果未形成可交付的结构化结论。",
             "recommended_handling": "建议人工二次审核并修正该 finding。",
@@ -858,6 +858,8 @@ def _minimal_response(runtime_input: dict, reason: str) -> dict:
         "review_scope": runtime_input.get("review_scope", {}),
         "output_format": "review_table",
         "overall_review_status": "requires_human_second_review",
+        "processing_status": "processing_hold",
+        "legal_conclusion_available": False,
         "review_table": table,
         "table_markdown": _build_table_markdown(table),
         "findings": [],
@@ -892,6 +894,64 @@ def _minimal_response(runtime_input: dict, reason: str) -> dict:
             "no_applicable_legal_basis_reason": reason,
         },
     }
+
+
+def processing_hold(raw_response: Any, runtime_input: dict, reason: str,
+                    *, failure_class: str = "protocol_failure",
+                    actions: list[str] | None = None) -> dict:
+    """Preserve the failed response without inventing a legal U or no-risk result."""
+
+    return {
+        "status": "blocked", "blocked": True,
+        "failure_class": failure_class,
+        "legal_conclusion_available": False,
+        "actions": list(actions or []) + [reason],
+        "raw_response": deepcopy(raw_response),
+        "response": _minimal_response(runtime_input, reason),
+    }
+
+
+def _validate_runtime_legal_u_basis(finding: dict, runtime_input: dict) -> str | None:
+    """QX-style U needs a caller-attested, question-bound decisive gap.
+
+    Model prose or a coverage=missing label cannot attest that a file was
+    absent. An unreadable page and an untransmitted same-package excerpt are
+    source-processing states, never proof of a legal missing fact.
+    """
+
+    contract = runtime_input.get("review_task_contract_v2") or {}
+    basis = finding.get("legal_u_basis")
+    if not isinstance(basis, dict):
+        return "legal_u_basis_missing"
+    fields = ("claim_id", "question_verbatim", "dependency_key", "missing_material",
+              "material_status", "reason", "counterfactual_impact", "next_check")
+    if any(not isinstance(basis.get(key), str) or not basis[key].strip() for key in fields):
+        return "legal_u_basis_incomplete"
+    if (basis["claim_id"] != runtime_input.get("issue_id")
+            or basis["question_verbatim"] != contract.get("question_verbatim")
+            or basis["dependency_key"] not in (contract.get("required_for_legal_conclusion") or [])):
+        return "legal_u_basis_not_bound_to_locked_question"
+    if basis["material_status"] in {"unreadable", "not_in_current_input", "processing_failed"}:
+        return "source_processing_gap_not_legal_u"
+    if basis["material_status"] == "future_event_unknown" and contract.get("declared_task_type") != "actual_conduct":
+        return "future_event_outside_locked_task"
+    if basis["material_status"] not in {"confirmed_missing_from_package", "applicable_rule_unavailable",
+                                     "decisive_fact_unknown", "future_event_unknown"}:
+        return "material_status_not_legal_u"
+    audits = runtime_input.get("task_gap_audit") or []
+    if not isinstance(audits, list) or not any(
+        isinstance(row, dict) and row.get("validated") is True
+        and row.get("record_origin") in {"deterministic_input_audit", "human_confirmed"}
+        and row.get("issue_id") == basis["claim_id"]
+        and row.get("dependency_key") == basis["dependency_key"]
+        and row.get("material_status") == basis["material_status"]
+        and row.get("missing_material") == basis["missing_material"]
+        and row.get("review_question") == basis["question_verbatim"]
+        and isinstance(row.get("audit_locator"), str) and bool(row["audit_locator"].strip())
+        for row in audits
+    ):
+        return "decisive_gap_not_attested_by_runtime"
+    return None
 
 
 def _canonicalize_evidence(finding: dict, runtime_input: dict, actions: list[str]) -> tuple[list[dict], bool, bool]:
@@ -2388,15 +2448,15 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
     """Return raw-preserving gate result with a safe final response."""
 
     actions: list[str] = []
+    # Historical experiments remain replayable. The bundle route is typed;
+    # the older QX v2 contract alone does not supply an attested gap ledger.
+    # Its task-aware semantics therefore require an explicit opt-in after
+    # prompt/input alignment, rather than silently blocking archived runs.
+    task_aware = bool(runtime_input.get("review_task_contract_v1")
+                      or runtime_input.get("gate_protocol_version") == "task-aware-v1")
     if not isinstance(raw_response, dict):
         reason = "LLM response was not a JSON object"
-        return {
-            "status": "blocked",
-            "blocked": True,
-            "actions": [reason],
-            "raw_response": deepcopy(raw_response),
-            "response": _minimal_response(runtime_input, reason),
-        }
+        return processing_hold(raw_response, runtime_input, reason, failure_class="invalid_json")
 
     response = deepcopy(raw_response)
     raw_response_preserved = deepcopy(raw_response)
@@ -2414,37 +2474,48 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
     _set_field(response, "overall_review_status", "requires_human_second_review", actions, "root")
     if not isinstance(response.get("findings"), list):
         reason = "LLM response findings is not a list; review_table/table_markdown are gate-generated and cannot replace findings"
-        return {
-            "status": "blocked",
-            "blocked": True,
-            "actions": actions + [reason],
-            "raw_response": raw_response_preserved,
-            "response": _minimal_response(runtime_input, reason),
-        }
+        return processing_hold(raw_response_preserved, runtime_input, reason, actions=actions)
 
     if not response["findings"] and not _empty_findings_are_runtime_authorized(runtime_input):
         reason = (
             "LLM response findings is empty for a submitted issue; an explicit runtime no_reviewable_issue "
             "authorization is required"
         )
-        return {
-            "status": "blocked",
-            "blocked": True,
-            "actions": actions + [reason],
-            "raw_response": raw_response_preserved,
-            "response": _minimal_response(runtime_input, reason),
-        }
+        return processing_hold(raw_response_preserved, runtime_input, reason, actions=actions)
 
     id_errors = _validate_finding_ids(response["findings"], runtime_input)
     if id_errors:
         reason = "invalid finding identity binding: " + "; ".join(id_errors)
-        return {
-            "status": "blocked",
-            "blocked": True,
-            "actions": actions + [reason],
-            "raw_response": raw_response_preserved,
-            "response": _minimal_response(runtime_input, reason),
-        }
+        return processing_hold(raw_response_preserved, runtime_input, reason, actions=actions)
+
+    # Structural failure is not a missing legal fact. A recognized legal U
+    # requires a semantic, task-bound gap; malformed coverage/conclusion does
+    # not acquire one merely by passing through the gate.
+    for index, finding in enumerate(response["findings"] if task_aware else []):
+        if canonicalize_conclusion_type(finding.get("conclusion_type")) is None:
+            return processing_hold(raw_response_preserved, runtime_input,
+                                   f"findings[{index}].conclusion_type_invalid",
+                                   failure_class="schema_failure", actions=actions)
+        coverage = finding.get("legal_element_coverage")
+        if (not isinstance(coverage, dict)
+                or any(coverage.get(field) not in VALID_COVERAGE_STATES for field in DECISIVE_FIELDS)):
+            return processing_hold(raw_response_preserved, runtime_input,
+                                   f"findings[{index}].legal_element_coverage_invalid",
+                                   failure_class="schema_failure", actions=actions)
+        if (task_aware and runtime_input.get("review_task_contract_v2")
+                and canonicalize_conclusion_type(finding.get("conclusion_type"))
+                == INSUFFICIENT_INFORMATION_NEEDS_HUMAN_CONFIRM):
+            reason = _validate_runtime_legal_u_basis(finding, runtime_input)
+            if reason:
+                return processing_hold(raw_response_preserved, runtime_input,
+                                       f"findings[{index}].{reason}",
+                                       failure_class="unverified_decisive_gap", actions=actions)
+
+    contract_evidence = _runtime_contract(runtime_input)
+    if task_aware and contract_evidence.get("extraction_status") in {"failed", "unread", "incomplete"}:
+        return processing_hold(raw_response_preserved, runtime_input,
+                               "document_extraction_failed_or_incomplete_not_legal_u",
+                               failure_class="source_processing_failure", actions=actions)
 
     runtime_scope = runtime_input.get("review_scope", {})
     runtime_scope = runtime_scope if isinstance(runtime_scope, dict) else {}
@@ -2557,9 +2628,11 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
             or bounded_review.get("eligible")
         )
         if requires_runtime_fact_relation and not runtime_fact_relation_supported:
-            actions.append(
-                f"forced {path} to information insufficiency because no exact runtime fact-law relation supports the claimed missing material or factual gap"
-            )
+            if task_aware:
+                return processing_hold(raw_response_preserved, runtime_input,
+                                       f"{path}.unverified_fact_law_relation_not_legal_u",
+                                       failure_class="claim_support_failure", actions=actions)
+            actions.append(f"forced {path} to information insufficiency because no exact runtime fact-law relation supports the claimed gap")
         possible_over_alert = bool(runtime_violations and explicit_no_issue_before_conflict)
         if possible_over_alert:
             if "gate_original_compliance_relation" not in finding and finding.get("compliance_relation"):
@@ -2598,6 +2671,13 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
             )
             and not no_issue_eligible
         )
+        if (task_aware and missing_fields and canonical_input not in {
+                INSUFFICIENT_INFORMATION_NEEDS_HUMAN_CONFIRM,
+                NO_APPLICABLE_LEGAL_BASIS_NEEDS_HUMAN_CONFIRM,
+            } and not evidence_backed_risk and not no_issue_eligible):
+            return processing_hold(raw_response_preserved, runtime_input,
+                                   f"{path}.unresolved_legal_elements_require_task_bound_gap_review",
+                                   failure_class="unverified_decisive_gap", actions=actions)
         no_law_invariant = bool(
             no_law_eligible
             and not usable_evidence
@@ -2609,8 +2689,8 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
             (not usable_evidence and not no_law_eligible)
             or (bool(missing_fields) and not evidence_backed_risk and not no_issue_eligible)
             or (invalid_evidence and not usable_evidence)
-            or canonical_input is None
-            or (requires_runtime_fact_relation and not runtime_fact_relation_supported)
+            or (not task_aware and canonical_input is None)
+            or (not task_aware and requires_runtime_fact_relation and not runtime_fact_relation_supported)
             or bool(bounded_review.get("missing_decisive_facts"))
         )
         old_conclusion = finding.get("reasoning_conclusion", "")
@@ -2656,15 +2736,16 @@ def apply_gate(raw_response: Any, runtime_input: dict) -> dict:
             reason_parts = []
             if bounded_review.get("missing_decisive_facts"):
                 reason_parts.append("尚缺：" + "、".join(bounded_review["missing_decisive_facts"]))
-            elif requires_runtime_fact_relation and not runtime_fact_relation_supported:
+            elif not task_aware and requires_runtime_fact_relation and not runtime_fact_relation_supported:
                 reason_parts.append("尚缺与当前事项对应的实际比较事实，或该阶段明确适用的材料提交要求及已审记录")
             if missing_fields:
-                reason_parts.append("模型报告未闭合字段（不单独视为风险证据）：" + "、".join(missing_fields))
+                prefix = "法律要件仍待核验：" if task_aware else "模型报告未闭合字段（不单独视为风险证据）："
+                reason_parts.append(prefix + "、".join(missing_fields))
             if not evidence:
                 reason_parts.append("没有可用且可定位的运行时法规证据")
             if invalid_evidence:
                 reason_parts.append("部分法规引用未通过运行时证据回配")
-            if canonical_input is None:
+            if not task_aware and canonical_input is None:
                 reason_parts.append("conclusion_type 不是可识别的 v2 或 legacy 状态")
             reason = "；".join(reason_parts) or "当前材料或运行时审计未形成可用结论"
             _set_field(finding, "conclusion_type", INSUFFICIENT_INFORMATION_NEEDS_HUMAN_CONFIRM, actions, path)

@@ -19,10 +19,11 @@ LAW_1 = "law-23"
 LAW_2 = "reg-21"
 
 
-def task():
+def task(requires_operand=False):
     label = {"issue_id": "SYN-TENDER-1", "review_task_kind": "tender_clause_legality",
              "document_id": "DOC-1", "document_location": "p2-b3",
-             "document_excerpt": EXCERPT, "bundle_evidence": {"documents_received": ["DOC-1"]}}
+             "document_excerpt": EXCERPT, "bundle_evidence": {"documents_received": ["DOC-1"]},
+             "requires_comparison_operand": requires_operand}
     contract = build_task_contract(label)
     runtime = {
         "review_task_contract_v1": contract,
@@ -90,6 +91,7 @@ class BundleLegalReviewTests(unittest.TestCase):
     def test_task_is_locked_before_inference_and_prompt_uses_old_taxonomy(self):
         self.assertEqual("clause_design", self.contract["review_mode"])
         self.assertEqual([CLAIM_ID], [x["claim_id"] for x in self.contract["required_claims"]])
+        self.assertNotIn("comparison_operand", self.contract["required_claims"][0]["required_dependencies"])
         self.assertIn("applicable_rule", prompt_addendum())
         self.assertIn("outside_locked_scope", prompt_addendum())
 
@@ -199,6 +201,8 @@ class BundleLegalReviewTests(unittest.TestCase):
         self.assertIn("no_issue_without_material_element_comparison", result["professional_review_v1"]["errors"])
 
     def test_u_requires_typed_decisive_gap_and_unresolved_element(self):
+        self.contract, self.runtime = task(requires_operand=True)
+        self.row = finding(self.contract)
         row = deepcopy(self.row)
         row["conclusion_type"] = "insufficient_information_needs_human_confirm"
         row["professional_review"]["legal_effect_relation"] = "decisive_gap"
@@ -214,6 +218,28 @@ class BundleLegalReviewTests(unittest.TestCase):
         result = self.evaluate(row)
         self.assertFalse(result["blocked"])
         self.assertEqual(["comparison_operand"], result["professional_review_v1"]["u_cause_codes"])
+
+    def test_unlocked_comparison_operand_cannot_make_legal_u(self):
+        row = deepcopy(self.row)
+        row["conclusion_type"] = "insufficient_information_needs_human_confirm"
+        row["professional_review"]["legal_effect_relation"] = "decisive_gap"
+        row["professional_review"]["element_comparisons"][3]["relation"] = "unresolved_decisive"
+        row["professional_review"]["gaps"] = [{
+            "gap_id": "G1", "kind": "comparison_value_missing",
+            "dependency_key": "comparison_operand", "task_relation": "decisive_for_claim",
+            "affected_claim_ids": [CLAIM_ID], "detail": "未来修改的日期未提供",
+            "reason": "a future change might occur", "counterfactual_impact": "could alter a future review",
+            "dependency_trigger": "locked_requirement", "next_step": "ask for a future record",
+        }]
+        result = self.evaluate(row)
+        self.assertTrue(result["blocked"])
+        self.assertIn("gap_not_bound_to_required_dependency", result["professional_review_v1"]["errors"])
+
+    def test_modified_task_contract_is_processing_hold(self):
+        self.runtime["review_task_contract_v1"]["required_claims"][0]["required_dependencies"].append("comparison_operand")
+        result = self.evaluate()
+        self.assertTrue(result["blocked"])
+        self.assertIn("task_contract_digest_mismatch", result["professional_review_v1"]["errors"])
 
     def test_generic_u_without_decisive_gap_is_a_protocol_hold(self):
         row = deepcopy(self.row)
