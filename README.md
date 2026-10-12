@@ -30,6 +30,15 @@ Phase 2 consolidates all post-baseline engineering and evaluation work:
 
 Start with [`phase2_public/README.md`](phase2_public/README.md).
 
+The default branch is synchronized to the approved Phase 2 model development
+line on 2026-10-13. It includes the active task-aware gate, the professional
+full-file addendum, conditional MinerU/OCR helpers, reusable operator skill and
+public offline reproduction command. Opt-in candidates remain explicitly
+labelled in their own directories. See
+[`phase2_public/PUBLIC_MODEL_SYNC_20261013.md`](phase2_public/PUBLIC_MODEL_SYNC_20261013.md)
+for the synchronization scope and version record. Expert workbooks and paper
+analysis remain private and are not part of this model synchronization.
+
 ### Phase 1 — frozen baseline
 
 The original implementation and research artifacts remain under the

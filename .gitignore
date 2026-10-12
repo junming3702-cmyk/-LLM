@@ -53,3 +53,11 @@ Thumbs.db
 .vscode/
 *.inspect.ndjson
 *.in_progress.json
+
+# Private paper, expert-review and generated receipt material
+paper_grade/
+publication_plan/
+phase2_paper/
+outputs/
+received_workbooks_PRIVATE/
+*.private.json
