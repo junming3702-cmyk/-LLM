@@ -450,6 +450,7 @@ def run_final_reasoning(
     source_role_guard: bool = False,
     external_auto_candidates: bool = False,
     nu_boundary: bool = False,
+    task_contract_v2: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Run one final-reasoning pass and apply the deterministic gate."""
 
@@ -463,7 +464,10 @@ def run_final_reasoning(
     if risk_binding:
         from risk_binding_policy import PROMPT as RISK_BINDING_PROMPT
         prompt += RISK_BINDING_PROMPT
-    if nu_boundary:
+    if task_contract_v2:
+        from task_gate_v2_prompt import build_prompt
+        prompt = build_prompt(prompt)
+    elif nu_boundary:
         from nu_boundary_policy import PROMPT as NU_BOUNDARY_PROMPT
         prompt += NU_BOUNDARY_PROMPT
     if source_role_guard:
@@ -471,6 +475,9 @@ def run_final_reasoning(
         prepared = prepare_source_roles(runtime_input)
         runtime_input.clear()
         runtime_input.update(prepared)
+    if task_contract_v2:
+        from review_task_contract_v2 import build_contract
+        runtime_input["review_task_contract_v2"] = build_contract(runtime_input)
     response = model_request(
         api_key,
         prompt,
@@ -483,8 +490,8 @@ def run_final_reasoning(
     raw: Any = response.get("parsed")
     if raw is None:
         raw = response.get("selected_text", "")
-    if risk_binding or external_scope_bridge or source_role_guard or external_auto_candidates or nu_boundary:
-        gated = apply_gate(raw,runtime_input,risk_binding=risk_binding,external_scope_bridge=external_scope_bridge,source_role_guard=source_role_guard,external_auto_candidates=external_auto_candidates,nu_boundary=nu_boundary)
+    if risk_binding or external_scope_bridge or source_role_guard or external_auto_candidates or nu_boundary or task_contract_v2:
+        gated = apply_gate(raw,runtime_input,risk_binding=risk_binding,external_scope_bridge=external_scope_bridge,source_role_guard=source_role_guard,external_auto_candidates=external_auto_candidates,nu_boundary=nu_boundary,task_contract_v2=task_contract_v2)
     else:
         gated = apply_gate(raw,runtime_input)
     return response, gated

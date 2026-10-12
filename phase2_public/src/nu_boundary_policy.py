@@ -90,7 +90,7 @@ def _text(value):
     return value.strip() if isinstance(value, str) else ""
 
 
-def audit_basis(runtime, finding, usable_evidence):
+def audit_basis(runtime, finding, usable_evidence, *, locator_spans=None):
     """Validate structure/binding. Never call this a legal correctness check."""
     from scope_boundary_policy import task_contract
     task = task_contract(runtime)
@@ -105,6 +105,11 @@ def audit_basis(runtime, finding, usable_evidence):
     for i, marker in enumerate(markers):
         end = markers[i + 1].start() if i + 1 < len(markers) else len(excerpt)
         marked_spans.setdefault(marker.group(1), []).append(excerpt[marker.end():end])
+    if locator_spans is not None:
+        # Candidate-only: caller constructs spans from declared input locators.
+        # Historical v1 behaviour remains unchanged when this is omitted.
+        marked_spans = locator_spans
+        locators = set(locator_spans)
     basis = finding.get("decision_basis")
     result = {"version": VERSION, "schema_valid": True,
               "eligible_no_issue": False, "force_insufficient": False,

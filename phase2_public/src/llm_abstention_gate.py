@@ -2410,9 +2410,10 @@ def _final_consistency_pass(
         _set_field(finding, "human_review_status", "review_required", actions, path)
 
 
-def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = False, external_scope_bridge: bool = False, source_role_guard: bool = False, external_auto_candidates: bool = False, nu_boundary: bool = False) -> dict:
+def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = False, external_scope_bridge: bool = False, source_role_guard: bool = False, external_auto_candidates: bool = False, nu_boundary: bool = False, task_contract_v2: bool = False) -> dict:
     """Return raw-preserving gate result with a safe final response."""
 
+    nu_boundary = nu_boundary or task_contract_v2
     actions: list[str] = []
     if source_role_guard:
         from source_role_policy import prepare_runtime as prepare_source_roles
@@ -2517,6 +2518,7 @@ def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = F
         if not isinstance(finding, dict):
             continue
 
+        original_finding_for_handoff = deepcopy(finding)
         raw_conclusion = finding.get("conclusion_type")
         original_conclusion_type = raw_conclusion
         canonical_input = canonicalize_conclusion_type(raw_conclusion)
@@ -2562,7 +2564,10 @@ def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = F
         usable_evidence = [item for item in evidence if _is_usable_legal_basis(item)]
         nu_audit = {}
         if nu_boundary:
-            from nu_boundary_policy import audit_basis
+            if task_contract_v2:
+                from review_task_contract_v2 import audit_basis_v2 as audit_basis
+            else:
+                from nu_boundary_policy import audit_basis
             nu_audit = audit_basis(runtime_input, finding, usable_evidence)
             _set_field(finding, "nu_boundary_audit", nu_audit, actions, path)
         bounded_review = _runtime_bounded_review(runtime_input, usable_evidence)
@@ -3006,6 +3011,9 @@ def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = F
         _set_field(finding, "assistant_recommendation", recommendation, actions, path)
         processing_label = _default_processing_label(finding)
         _set_field(finding, "review_processing_label", processing_label, actions, path)
+        if task_contract_v2:
+            from review_task_contract_v2 import build_handoff
+            _set_field(finding, "review_handoff", build_handoff(original_finding_for_handoff, finding), actions, path)
 
     if any_conclusion_changed:
         if isinstance(response.get("project_summary"), dict) and "gate_original_project_summary" not in response:
@@ -3080,9 +3088,13 @@ def apply_gate(raw_response: Any, runtime_input: dict, *, risk_binding: bool = F
     nu_schema_blocked = bool(nu_boundary and any(
         not f.get("nu_boundary_audit", {}).get("schema_valid", False)
         for f in response["findings"]))
+    v2_evidence_blocked = bool(task_contract_v2 and any(
+        f.get("nu_boundary_audit", {}).get("processing_status") == "evidence_binding_blocked"
+        for f in response["findings"]))
+    technical_blocked = nu_schema_blocked or v2_evidence_blocked
     return {
-        "status": "blocked" if nu_schema_blocked else "corrected" if actions else "passed",
-        "blocked": nu_schema_blocked,
+        "status": "blocked" if technical_blocked else "corrected" if actions else "passed",
+        "blocked": technical_blocked,
         "actions": actions,
         "raw_response": raw_response_preserved,
         "response": response,

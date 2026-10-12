@@ -33,6 +33,11 @@ HEADERS = [
     "Human reviewer notes",
 ]
 
+HANDOFF_HEADERS = ["Processing status", "Review question", "Input-bound scope",
+    "Completed checks (model-reported)", "Unverified model explanation",
+    "Blocking reasons", "Follow-up only", "Gap classification audit",
+    "Evidence roles", "Scope confirmation required", "Human scope decision"]
+
 
 def read_records(path: Path) -> list[dict[str, Any]]:
     if path.suffix.lower() == ".jsonl":
@@ -113,12 +118,12 @@ def source_locator_text(finding: dict[str, Any]) -> str:
     return as_text(location or finding.get("source_locator"))
 
 
-def flatten_record(record: dict[str, Any]) -> Iterable[list[str]]:
+def flatten_record(record: dict[str, Any], *, include_handoff: bool = False) -> Iterable[list[str]]:
     response, gate_status, blocked = gated_response(record)
     issue_id = as_text(record.get("issue_id") or response.get("issue_id"))
     findings = response.get("findings")
     if not isinstance(findings, list) or not findings:
-        yield [
+        row = [
             issue_id,
             "blocked" if blocked else gate_status,
             "",
@@ -133,6 +138,17 @@ def flatten_record(record: dict[str, Any]) -> Iterable[list[str]]:
             "",
             "",
         ]
+        if include_handoff:
+            runtime = record.get("runtime_input") or {}
+            contract = runtime.get("contract_evidence") or {}
+            task = runtime.get("review_task_contract_v2") or {}
+            row[2] = as_text(contract.get("document_excerpt"))
+            row[9] = as_text(contract.get("document_location"))
+            row += ["technical_failure", as_text(task.get("question_verbatim")),
+                    as_text(task.get("scope")), "", "无有效模型输出，不补造解释。",
+                    "No deliverable finding; inspect original execution diagnostics.", "", "", "",
+                    as_text(task.get("ambiguity_requires_review")), ""]
+        yield row
         return
 
     for finding in findings:
@@ -140,12 +156,13 @@ def flatten_record(record: dict[str, Any]) -> Iterable[list[str]]:
             continue
         recommendation = finding.get("assistant_recommendation")
         if isinstance(recommendation, dict):
-            recommendation = (
+            recommendation = ("\n".join(as_text(recommendation.get(k)) for k in
+                ("substantive_conclusion", "recommended_handling") if recommendation.get(k)) if include_handoff else None) or (
                 recommendation.get("substantive_conclusion")
                 or recommendation.get("recommended_handling")
                 or recommendation
             )
-        yield [
+        row = [
             as_text(finding.get("issue_id") or issue_id),
             gate_status,
             as_text(finding.get("document_excerpt")),
@@ -160,17 +177,35 @@ def flatten_record(record: dict[str, Any]) -> Iterable[list[str]]:
             "",
             "",
         ]
+        if include_handoff:
+            handoff = finding.get("review_handoff") or {}
+            task = (record.get("runtime_input") or {}).get("review_task_contract_v2") or {}
+            row += [as_text(handoff.get("processing_status", "not_evaluated")),
+                as_text(task.get("question_verbatim")), as_text(task.get("scope")),
+                as_text(handoff.get("completed_checks_reported_by_model")),
+                ("未经核验的模型解释，不能作为独立法律依据：\n" + as_text(handoff.get("model_comparison_for_review"))),
+                as_text(handoff.get("blocking_reasons")), as_text(handoff.get("follow_up_only")),
+                as_text(handoff.get("gap_resolutions")), as_text(handoff.get("evidence_roles")),
+                as_text(handoff.get("scope_needs_confirmation")), ""]
+        yield row
 
 
-def build_workbook(records: Iterable[dict[str, Any]], output_path: Path) -> None:
+def build_workbook(records: Iterable[dict[str, Any]], output_path: Path, *, include_handoff: bool = False) -> None:
+    if include_handoff and output_path.exists():
+        raise FileExistsError("Candidate workbook is append-only; select a new output path")
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "Human review"
-    sheet.append(HEADERS)
+    sheet.append(HEADERS + (HANDOFF_HEADERS if include_handoff else []))
 
     for record in records:
-        for row in flatten_record(record):
+        for row in flatten_record(record, include_handoff=include_handoff):
+            if any(isinstance(value, str) and len(value) > 32767 for value in row):
+                raise ValueError("Excel cell limit exceeded; use a segmented evidence sheet, never silently truncate")
             sheet.append(row)
+            for cell in sheet[sheet.max_row]:
+                if isinstance(cell.value, str):
+                    cell.data_type = "s"  # Treat document-supplied '=...' as text, never executable formulas.
 
     header_fill = PatternFill("solid", fgColor="1F4E78")
     alert_fill = PatternFill("solid", fgColor="F4CCCC")
@@ -193,6 +228,8 @@ def build_workbook(records: Iterable[dict[str, Any]], output_path: Path) -> None
                 cell.fill = review_fill
 
     widths = [18, 14, 52, 38, 24, 60, 52, 60, 20, 30, 30, 24, 48]
+    if include_handoff:
+        widths += [24, 44, 30, 60, 60, 52, 52, 52, 52, 22, 28]
     for index, width in enumerate(widths, start=1):
         sheet.column_dimensions[get_column_letter(index)].width = width
     sheet.freeze_panes = "A2"
@@ -222,8 +259,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--include-handoff", action="store_true")
     args = parser.parse_args()
-    build_workbook(read_records(args.input), args.output)
+    build_workbook(read_records(args.input), args.output, include_handoff=args.include_handoff)
     print(json.dumps({"output": str(args.output), "status": "written"}, ensure_ascii=False))
     return 0
 

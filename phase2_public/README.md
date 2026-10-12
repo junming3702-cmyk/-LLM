@@ -44,6 +44,15 @@ real tender files, private API payloads, local cache paths or credentials.
 
 Every state retains `requires_human_second_review` as the overall delivery status.
 
+## Isolated task/gate candidate
+
+The opt-in [task-gate v2 candidate](docs/task_gate_v2_candidate.md) adds
+input-bound task scope, conservative gap-dependency checks, redaction-aware
+source spans, separate processing/decision status and a lossless review handoff.
+It includes a network-disabled paired replay harness and synthetic guards.
+It is not a production promotion or a new expert evaluation. Real inputs,
+responses, references and review workbooks remain private and are not published.
+
 ## Repository layout
 
 - `src/`: ingestion, strict retrieval, external fallback, LLM response parsing,
