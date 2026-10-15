@@ -39,6 +39,13 @@ labelled in their own directories. See
 for the synchronization scope and version record. Expert workbooks and paper
 analysis remain private and are not part of this model synchronization.
 
+Final model-only synchronization was verified on **2026-10-15**. The runtime
+remains unchanged from the approved source commit: 97 core and 28 full-bundle
+offline tests passed, together with five separately executed script-style
+checks. See the [verification record](phase2_public/PUBLIC_MODEL_VERIFICATION_20261015.md)
+and [hashed runtime inventory](phase2_public/public_model_inventory_20261015.json).
+These are functional checks, not new legal-accuracy or expert-validation results.
+
 ### Phase 1 — frozen baseline
 
 The original implementation and research artifacts remain under the

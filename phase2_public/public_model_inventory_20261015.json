@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "verification_date": "2026-10-15",
+  "scope": "public model only",
+  "runtime_source_commit": "21f6ccf8b6d22d0a926a2c7330728711e68967c2",
+  "model_behavior_changed": false,
+  "reasoning_model": "deepseek-v4-flash",
+  "online_inference_run": false,
+  "offline_verification": {
+    "core_unittest_cases": 97,
+    "bundle_unittest_cases": 28,
+    "script_style_suites": 5,
+    "all_passed": true,
+    "note": "Script-style suites are reported separately, not added to unittest case counts."
+  },
+  "revision_note": "Documentation-only verification; no new model, prompt, gate, corpus or experimental result.",
+  "hash_note": "git_content_sha256 identifies repository bytes; tested_worktree_sha256 identifies the Windows checkout. Line-ending differences were separately verified as content-equivalent.",
+  "core_runtime_files": [
+    {
+      "path": "phase2_public/prompts/bundle_professional_addendum_final.md",
+      "git_blob": "190e3a10b4a60cf152273e0ca029510c1758a314",
+      "git_content_sha256": "f32864c09d5bed935c2dba4dc2aa42f105c4d72dbdaa55180efbad59665b8431",
+      "tested_worktree_sha256": "f32864c09d5bed935c2dba4dc2aa42f105c4d72dbdaa55180efbad59665b8431"
+    },
+    {
+      "path": "phase2_public/prompts/system_prompt_final.md",
+      "git_blob": "6b487368ce3176d2a079fa1a7dac5c4ce7c7b217",
+      "git_content_sha256": "13e5c8395805b8c37a8f34c1a6b72e4cbda0750f6226d58106eadf36522d34a8",
+      "tested_worktree_sha256": "6f173d73c2ffd0f17cebfccf1fa8aaeb002ded1241bd75666118723bd3cd9b87"
+    },
+    {
+      "path": "phase2_public/reproduce_offline.py",
+      "git_blob": "7e19ecce4bb153c926cadaf686eede18eab9da8a",
+      "git_content_sha256": "99d62dbd2e4ad1c1f4d2569ed21b240aa750baa6a24403d8685ef6ec2013c579",
+      "tested_worktree_sha256": "99d62dbd2e4ad1c1f4d2569ed21b240aa750baa6a24403d8685ef6ec2013c579"
+    },
+    {
+      "path": "phase2_public/requirements.txt",
+      "git_blob": "6563bbcd0bc605034642baced4bcf04ae23336e7",
+      "git_content_sha256": "ee83a50f2af6460b364851a12027d73084bb864b72071d28feff1ee06dfd6de4",
+      "tested_worktree_sha256": "159a63e39f101e33369ad389341908bac6c743b2ef21e4a7dc2d290fb9a9cd2a"
+    },
+    {
+      "path": "phase2_public/skill/evidence-grounded-contract-review/SKILL.md",
+      "git_blob": "a9c8f265000c8314413108b64ff401bb586e4e75",
+      "git_content_sha256": "017e5f2f8be26001a436d4622bbd1f96779d9ceef461c91509530bd4b60df344",
+      "tested_worktree_sha256": "017e5f2f8be26001a436d4622bbd1f96779d9ceef461c91509530bd4b60df344"
+    },
+    {
+      "path": "phase2_public/skill/evidence-grounded-contract-review/references/RUNBOOK.md",
+      "git_blob": "763a3c45e0014945a114e781a4c1080fd62b2338",
+      "git_content_sha256": "ee97d890529e8d83f7a04573f9a1d4c91c80f6d6cee62b027fd71bb76cdfdc18",
+      "tested_worktree_sha256": "ee97d890529e8d83f7a04573f9a1d4c91c80f6d6cee62b027fd71bb76cdfdc18"
+    },
+    {
+      "path": "phase2_public/skill/evidence-grounded-contract-review/references/V1_ALIGNMENT_AND_STATUS.md",
+      "git_blob": "e93c074bb7f4ac42caa0539084406a2565d0d1ed",
+      "git_content_sha256": "04feaf9162f672e2e63c804297e35df7f9e9e4cad3d0c34173cc3c3640f6671f",
+      "tested_worktree_sha256": "04feaf9162f672e2e63c804297e35df7f9e9e4cad3d0c34173cc3c3640f6671f"
+    },
+    {
+      "path": "phase2_public/src/build_rag_index.py",
+      "git_blob": "eccae7f3857fe3fc5ca327bf6417a91e69424eee",
+      "git_content_sha256": "1dff0988ef57c668c33a8e35fb6ece28df25020d1b8937924cf2bf2a15fd042d",
+      "tested_worktree_sha256": "67098daece698738d4b1ac2093676196a838303ac0ebb45c12f636bebf6ee047"
+    },
+    {
+      "path": "phase2_public/src/bundle_legal_review_v1.py",
+      "git_blob": "0a0d8663746d4f72e1197fb6a4aa8ed3dcbe99a2",
+      "git_content_sha256": "3b9a082cfd4f94147e379f797cdb17d93a4fc8c48f7d3049420e2a025f97b59b",
+      "tested_worktree_sha256": "3b9a082cfd4f94147e379f797cdb17d93a4fc8c48f7d3049420e2a025f97b59b"
+    },
+    {
+      "path": "phase2_public/src/conclusion_contract_v2.py",
+      "git_blob": "e72c37e6625e28e02a25120a933c1996cb779662",
+      "git_content_sha256": "1284fcb7c0aa1496f63673b8e62b53f9d19d14fd61c09d6c78ab2c6881584af7",
+      "tested_worktree_sha256": "7d8bd170f0f552eaee062edfd33a369281cc53ebe49f5161a564d04f73135506"
+    },
+    {
+      "path": "phase2_public/src/document_ingestor.py",
+      "git_blob": "fe4374c2d283dfa4b9af670aa4ec35f8953dc3ad",
+      "git_content_sha256": "89d14374471bc76716b92445807279ea7e741d29b40c833f0524af56052325ea",
+      "tested_worktree_sha256": "0d290d2a9a02d797d950ae4ea0b97643ecf92f61337139a1d067caae24164f2d"
+    },
+    {
+      "path": "phase2_public/src/evaluate_strict_llm_batch_v1.py",
+      "git_blob": "ae6969609b0d4706b018920c538ab09de2705fc1",
+      "git_content_sha256": "2858f3becff7ab8fc721777d5ad430c202a2c4ad2074cb23a04afb2cd2ed4aa0",
+      "tested_worktree_sha256": "49abe7b55ee9db54a253e09cf4d05ff450dd69cc717f4777931dc85b5afbc9a1"
+    },
+    {
+      "path": "phase2_public/src/export_review_excel.py",
+      "git_blob": "f4170b69e3d27fd4ed639a415ca1cda44184266a",
+      "git_content_sha256": "32f86971458240d6bbe9c632c953179cc297c6f0d67eb18b11a7d6572c03f3c3",
+      "tested_worktree_sha256": "b87e9935015a082097a7c0e0a63663337d72167a3185bb26bc3d9cff60339042"
+    },
+    {
+      "path": "phase2_public/src/external_fallback_v2.py",
+      "git_blob": "8886fe7a5ad58e05f88b0a3101beb894e489a18f",
+      "git_content_sha256": "25bf7f79d4d5d0e9ebfecca4785dc5587b0b79d3aeb5672f1aa15bb5f939439a",
+      "tested_worktree_sha256": "910b8ec031bf15f34abc03934916c47d38ae8821c5652b0f76f8bb9e196c9132"
+    },
+    {
+      "path": "phase2_public/src/hierarchy_cascade_retriever.py",
+      "git_blob": "e0b95805c0026c3aea4de0a78e7e2d607e51633b",
+      "git_content_sha256": "e5031a63780b50e539df4cf903734773e84d3fe77a3731dd31bb126b4e3978e8",
+      "tested_worktree_sha256": "70d9b6c6a49898b7529579414f12e7ed45793cb4267083120ec7fc20fe2e40db"
+    },
+    {
+      "path": "phase2_public/src/law_source_version_v1.py",
+      "git_blob": "cb0ff0ba51739d3f058b51e2523a410e560234d1",
+      "git_content_sha256": "4f28a7253444868f2ceb10fa8d67d60b851874a55908a4b1bb36856afbb9aa52",
+      "tested_worktree_sha256": "4f28a7253444868f2ceb10fa8d67d60b851874a55908a4b1bb36856afbb9aa52"
+    },
+    {
+      "path": "phase2_public/src/llm_abstention_gate.py",
+      "git_blob": "2616fdaed3345e28d2dd5beb6625ad99232ae4aa",
+      "git_content_sha256": "df80df5697fe411a38492a488ded6ab3f6c6981651bcd9567b11daf14ad19119",
+      "tested_worktree_sha256": "20ac72981862c8d37253c772cffbb76455947d38a5d57b38b42b7a6c4aa0a4a6"
+    },
+    {
+      "path": "phase2_public/src/llm_response_parser_v1.py",
+      "git_blob": "0d76f5f6a822662084492b59f688ce82730e2638",
+      "git_content_sha256": "877a8d7e2032896625dbe3ee10b0a4dd18946558f2d7810787acc81202ada06e",
+      "tested_worktree_sha256": "edd0486332625deb01df8deb0205fbbd25d15aaf1b14d395898d0f15359aa9b8"
+    },
+    {
+      "path": "phase2_public/src/mineru_pdf_docx_backmatch.py",
+      "git_blob": "43fba3206bf37ff237e447c1facf5b5734d66406",
+      "git_content_sha256": "6937a2516139031d313e876156a85c97a992312ccef2529576caf26528cf6624",
+      "tested_worktree_sha256": "1f62d16535f033ec9da96280e53530665eee74fc839abeaf77e98445c13c6fc0"
+    },
+    {
+      "path": "phase2_public/src/mineru_precision_preprocessor.py",
+      "git_blob": "29feee4767f15249465c780e391a66f99a11a918",
+      "git_content_sha256": "5340bf58f89140c9d7dc159e27a56ad28189fa3b165c08a6cca226e211a1225e",
+      "tested_worktree_sha256": "d878245a1c7e98b89b176a132555234228ba3a548f9ae58352cab3868aac1464"
+    },
+    {
+      "path": "phase2_public/src/mineru_source_locator_adapter.py",
+      "git_blob": "c406b1d74f8c09277ab29e61f2b397993157dc31",
+      "git_content_sha256": "03ae59bb831f764d5d3d675417768365d9d35988f9920f778cfd55873331f091",
+      "tested_worktree_sha256": "ab122f39b9879e99b20b01c7a510e493c165103d3404a6d6d3940db0d35d3eee"
+    },
+    {
+      "path": "phase2_public/src/paddleocr_coordinate_smoke_test.py",
+      "git_blob": "f05281371796b144e1f88a7bf302083eb379abc0",
+      "git_content_sha256": "eb3858649a7f954750b99365adf5c9f0dd7fa93853c3a8412c6f2d0abd95d93d",
+      "tested_worktree_sha256": "7977cee258b8f9aef5195fa44054942b40e53650a68a8ffd6b5b6e04e16fb640"
+    },
+    {
+      "path": "phase2_public/src/replay_stage3_gate_v2.py",
+      "git_blob": "688f05f091f7959550e8ef51a35d1ec58d020e1b",
+      "git_content_sha256": "389dd3b41136141600a1a301f50092a43e43bd8626a23b67a205eddb99ec76b5",
+      "tested_worktree_sha256": "9d88c348df13b366a82d68938e79516f7291ed50cd79f734b8dc5f3898e95f8d"
+    },
+    {
+      "path": "phase2_public/src/retrieval_task_query_v1.py",
+      "git_blob": "bdcc2a605cc4782f44f1eee929c4fe106c79eeb7",
+      "git_content_sha256": "3faf693382888525f7ee0f8d44977729d43f4f33519f08d12437d9e7c5773b20",
+      "tested_worktree_sha256": "3faf693382888525f7ee0f8d44977729d43f4f33519f08d12437d9e7c5773b20"
+    },
+    {
+      "path": "phase2_public/src/run_deepseek_llm_reasoning_smoke.py",
+      "git_blob": "9002faf99bde0d8fad624c24b4ff4ea0d2842e49",
+      "git_content_sha256": "58be70f6bd6d3abe8a618244a1b15f4f8be51abf260df930b00bd46a9ac54fa0",
+      "tested_worktree_sha256": "93f9794b39390881edf4a25a0d8e18b61939d9d97c70aa57971184efd5f5bc22"
+    },
+    {
+      "path": "phase2_public/src/run_embedding_hybrid_retrieval.py",
+      "git_blob": "586335b53c8577e9f2f510064ebc9cd05b97b926",
+      "git_content_sha256": "bb1b1be09ff7d9a5baf59054c6232203650c9cb2f890196f59cf643c7ce1d7e4",
+      "tested_worktree_sha256": "8efd7b7e8a420ae560268994f7688e9a41387da54d952f6a71f13ef341936d0a"
+    },
+    {
+      "path": "phase2_public/src/run_hierarchy_gated_llm_smoke.py",
+      "git_blob": "500e15c5af83c934eb56d89483167455af56465b",
+      "git_content_sha256": "b6037685d838030c596a0ceab19356696dbc1c6299433d0ff3df5e5362e5f72e",
+      "tested_worktree_sha256": "43eb9d949a0b8d660e9eeee5f22187af56ee0df97b74ea02acee1a5437785404"
+    },
+    {
+      "path": "phase2_public/src/run_retrieval_test.py",
+      "git_blob": "55cb9c1712e21df432e14d43c485bb8dbbffeb00",
+      "git_content_sha256": "465a7760c69ac73d323594ff65f549bca29f1e45f2072bfdfd51d7532cb787e2",
+      "tested_worktree_sha256": "0e2c5485566ae738e5cabdb0ba09516f77214c203aad905ddd39f179f2cd0ba4"
+    },
+    {
+      "path": "phase2_public/src/split_pdf_for_mineru.py",
+      "git_blob": "b23fe98ca6337a4af77d5f9effbf1d34ab30c753",
+      "git_content_sha256": "2fc30e61750c6acabc949bfcce8e51be51727f49683cd1cf670167648c71b33f",
+      "tested_worktree_sha256": "6e99486428eee9aba87aa9402c19b6a08c6da796b1fe2c46ef8a277c416b2d51"
+    },
+    {
+      "path": "phase2_public/src/task_gap_protocol_v1.py",
+      "git_blob": "d0fa5c7361d0045078ffed0348015c453cbea31a",
+      "git_content_sha256": "d6bc0808eafdbcf99392086f3ac49af33e1c3f10c4ec0c04f743cb926205443a",
+      "tested_worktree_sha256": "d6bc0808eafdbcf99392086f3ac49af33e1c3f10c4ec0c04f743cb926205443a"
+    },
+    {
+      "path": "phase2_public/src/task_subconclusion_v1.py",
+      "git_blob": "aee3f46876a298565fba158790989b493c31bacf",
+      "git_content_sha256": "2f527bf50815fdcdd0a317ed8463c94452a956a09eaa4a2e7f1226cce65ce153",
+      "tested_worktree_sha256": "2f527bf50815fdcdd0a317ed8463c94452a956a09eaa4a2e7f1226cce65ce153"
+    },
+    {
+      "path": "phase2_public/src/task_text_comparison_v1.py",
+      "git_blob": "ae726ba318094023caacb02c31e2d7ad782b368a",
+      "git_content_sha256": "72a4603a6d1819eda7c5fc4c021370d0ebda53fe7135f7522241a1b22944dcb5",
+      "tested_worktree_sha256": "72a4603a6d1819eda7c5fc4c021370d0ebda53fe7135f7522241a1b22944dcb5"
+    },
+    {
+      "path": "phase2_public/src/triage_response_parser_v1.py",
+      "git_blob": "39f6adb40ea45a721b31c9f3f7521d6c40fa4e82",
+      "git_content_sha256": "595047f9a1269f7e9b3bd2dc39fa1e16c59d64e79ec0f443798510be916841eb",
+      "tested_worktree_sha256": "d94d05ba4cfea55bdcdb01f241799cbfb2631f7f79ca8ffe08fc0bb6f9b2b4a6"
+    }
+  ],
+  "not_included": [
+    "credentials",
+    "private project documents",
+    "expert responses",
+    "ethics records",
+    "manuscripts",
+    "scholarship and PhD application materials"
+  ],
+  "limitations": [
+    "Offline fixtures do not establish legal accuracy, expert agreement or production readiness.",
+    "Optional candidate modules remain opt-in; historical study versions remain distinct.",
+    "Use the containing Git commit to identify this verification record."
+  ]
+}
