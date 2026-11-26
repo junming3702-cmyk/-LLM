@@ -1,4 +1,4 @@
-# Evidence-Grounded AI for Construction Procurement
+# Evidence-grounded AI for construction tendering
 
 **From document excerpts to traceable evidence and human review.**
 
