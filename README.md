@@ -81,9 +81,15 @@ A separate [24-case synthetic BoQ pilot](phase1_public/experiments/design_revisi
 
 ## My contribution and collaboration
 
-I am **Junming Zhang**. I assist with program architecture design, review and accept outputs, refine and optimize the program, and develop evaluation plans.
+I am **Junming Zhang**, the project's sole creator and developer. I independently conceived, designed and developed the project, from its research objectives and architecture to implementation and evaluation design.
 
-AI tools assist code implementation and experimental table preparation. Expert participants support effectiveness checks and inform evaluation design through interviews. Their role is distinct from the automated regression tests and synthetic examples published here.
+- **Project purpose and architecture:** I defined the industry problem and research questions, and designed the complete workflow connecting source documents, retrieval, structured reasoning, release gates and professional review.
+- **Knowledge hierarchy and retrieval:** I designed the RAG source layers around legal authority and applicability in China, together with the ordered `L1–L4` retrieval cascade. Within each level and source phase, I combined BM25 and dense semantic retrieval to rank candidate evidence. See the [hierarchy and hybrid retriever](phase2_public/src/hierarchy_cascade_retriever.py) and [ordered execution](phase2_public/src/run_hierarchy_gated_llm_smoke.py).
+- **Reasoning design:** I designed source-bound prompts and configured `temperature = 0.1` as part of a reasoning scheme intended to limit overgeneralization of legal provisions. The [reasoning runner](phase2_public/src/run_hierarchy_gated_llm_smoke.py) records the prompts and request configuration.
+- **Gate design:** I designed deterministic checks for source locators, evidence eligibility, task binding and strict gap conditions before records are released or held. See the [evidence gate](phase2_public/src/llm_abstention_gate.py), [task gate](phase2_public/src/task_subconclusion_v1.py) and [gap protocol](phase2_public/src/task_gap_protocol_v1.py).
+- **Implementation and evaluation:** I implemented and refined the program, reviewed and accepted outputs, and designed the evaluation plan. The [expert-review protocol](phase2_public/evaluation/expert_review/README.md) and [public output examples](docs/portfolio/sample-results/RESULTS.md) document related evaluation and review artifacts.
+
+AI tools assisted code implementation and experimental table preparation under my direction. Domain practitioners appraised outputs and contributed interview feedback to evaluation design. Their appraisal is separate from the automated regression tests and synthetic examples published here.
 
 ## Run it locally
 
