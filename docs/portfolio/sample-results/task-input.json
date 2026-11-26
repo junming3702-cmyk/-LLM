@@ -1,0 +1,58 @@
+{
+  "contract": {
+    "version": "task-subconclusion-v1",
+    "issue_id": "SYN-U30",
+    "mode": "document_visibility",
+    "required_claims": [
+      {
+        "claim_id": "body",
+        "claim_type": "narrative_visibility"
+      },
+      {
+        "claim_id": "chart",
+        "claim_type": "chart_visibility"
+      }
+    ],
+    "sources": [
+      {
+        "source_id": "TECH-BODY",
+        "document_id": "TECH",
+        "locator": "p186-b6",
+        "source_kind": "text",
+        "text": "施工总进度计划说明：先完成基础工程，再开展主体工程。"
+      },
+      {
+        "source_id": "TECH-INDEX",
+        "document_id": "TECH",
+        "locator": "p2-b1",
+        "source_kind": "text",
+        "text": "目录：施工总进度计划和进度计划保证措施。"
+      }
+    ],
+    "contract_sha256": "07cd4c6e72cdf3d2adca819c8c3274bbd0a7f3990d125b3615b38cc7f40a09c2"
+  },
+  "preset_response": {
+    "issue_id": "SYN-U30",
+    "contract_sha256": "07cd4c6e72cdf3d2adca819c8c3274bbd0a7f3990d125b3615b38cc7f40a09c2",
+    "subconclusions": [
+      {
+        "claim_id": "body",
+        "status": "observed",
+        "source_refs": [
+          {
+            "source_id": "TECH-BODY",
+            "locator": "p186-b6",
+            "quote": "施工总进度计划说明"
+          }
+        ],
+        "explanation": "Provided body contains progress-plan narrative."
+      },
+      {
+        "claim_id": "chart",
+        "status": "pending_verification",
+        "source_refs": [],
+        "explanation": "Chart page has not been parsed; index alone does not verify chart."
+      }
+    ]
+  }
+}

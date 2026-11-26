@@ -1,0 +1,35 @@
+{
+  "run_date": "2026-11-26T13:44:53+08:00",
+  "source_commit_at_execution": "c6c14036fbfbf68cabbd7b8ec1d8aa7abe701ee0",
+  "command": "python docs/portfolio/run_demo.py",
+  "python": "3.12.16",
+  "platform": "Darwin arm64",
+  "packages": {
+    "numpy": "2.5.5",
+    "openpyxl": "3.1.5",
+    "requests": "2.34.2",
+    "sentence-transformers": "6.3.0",
+    "torch": "2.15.0"
+  },
+  "api_calls": 0,
+  "model_weights_loaded": false,
+  "private_inputs_used": false,
+  "source_sha256": {
+    "phase2_public/data/rag/corpus_chunks_public_sample.jsonl": "6d6deab0425cee958e6f8b483600b679dbcbf0583c3fa8c72518cec11488de37",
+    "phase2_public/data/gold/contract_review_final_synthetic_gold_v1.jsonl": "cd020269e3a1457198506e0a65be147dcb33222dd6e84b1e2d47b8549beae342",
+    "phase2_public/src/run_retrieval_test.py": "465a7760c69ac73d323594ff65f549bca29f1e45f2072bfdfd51d7532cb787e2",
+    "phase2_public/src/llm_abstention_gate.py": "df80df5697fe411a38492a488ded6ab3f6c6981651bcd9567b11daf14ad19119",
+    "phase2_public/src/task_subconclusion_v1.py": "2f527bf50815fdcdd0a317ed8463c94452a956a09eaa4a2e7f1226cce65ce153",
+    "phase2_public/tests/test_post_llm_gate_v2.py": "e13fcc238aa03128cdd6e2df01e669172fdc0829bdb75aaec5ad460277ac49eb",
+    "phase2_public/tests/test_task_subconclusion_v1.py": "4d79d327f4fbab8f0603651f60a8b0edd579e3531f9fca355ec2bb8dd6aa1d08",
+    "docs/portfolio/run_demo.py": "bb2a832b787adf41ad5b37a82d1fe33b018ece1b2f0819c6920f6a6972f736bc"
+  },
+  "artifact_sha256": {
+    "retrieval.json": "b179fa208b563ee466cf108c523744b9ed1580fc5970a2387a8e2762e7f94749",
+    "gate-inputs.json": "8bc8b5e0ac1470b3aa45faa93514d07b9f36103a6ed955fae0e77b2a4708c174",
+    "review.json": "3ef97a28028a96b1634a5cfe03eb5ef6c86d94de2ec1dd4458432e64fac001ab",
+    "task-input.json": "520dc056d8ab52ec50cfe432429e07ae24fcd30ccb70757580d7004cff66c1e7",
+    "task-result.json": "42d979e6f0c7686abeece61c8d6a609f646993a79f50370466f16323fd5c972b",
+    "RESULTS.md": "bd62583182f2aa72b13848cde47fe2c6c19295da1aa7921b9993874db224c626"
+  }
+}

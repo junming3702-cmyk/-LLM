@@ -1,113 +1,121 @@
-# Evidence-Grounded LLM/RAG Compliance Review
+# Evidence-Grounded AI for Construction Procurement
 
-This repository contains public, reproducible releases of an evidence-grounded
-LLM/RAG architecture for construction-procurement compliance review.
+**From document excerpts to traceable evidence and human review.**
 
-The system reviews procurement and contract-document excerpts against a
-hierarchical legal corpus. It returns traceable evidence, an evidence boundary,
-an abstention state when support is insufficient, and a recommendation for
-human second review. It does not make an automatic bid/win/disqualification
-decision and is not legal advice.
+A research prototype for reviewing construction procurement and contract documents. It connects potential issues to source passages, checks whether the evidence supports a conclusion, and prepares findings for professional review.
 
-## Public releases
+**[See the offline walkthrough](docs/portfolio/WALKTHROUGH.md)** · **[Inspect the generated results](docs/portfolio/sample-results/RESULTS.md)** · **[Reproduce the checks](#run-it-locally)**
 
-The Phase 1 baseline remains under `phase1_public/`. The current development
-line is under `phase2_public/`.
+## The industry problem
 
-### Phase 2 — current
+Procurement review involves more than finding a relevant rule. Reviewers need to locate the document passage, establish which sources apply, identify missing information, and decide what needs professional judgment. This project explores how AI can make that work more structured and inspectable.
 
-Phase 2 consolidates all post-baseline engineering and evaluation work:
+Construction and engineering management are the initial application domains. The broader research interest is **industry digitalization**: how AI tools can improve decision processes and, when supported by evidence, productivity. Transfer to other sectors is a future research direction.
 
-- strict Level 1 → Level 2 → Level 3 → Level 4 cascade retrieval enforced in code;
-- Level 4 jurisdiction and project-type applicability gates;
-- local-corpus exhaustion followed by an auditable external fallback;
-- baseline parsing with MinerU as the conditional enhancement path and
-  coordinate OCR as the backup path;
-- a deterministic post-LLM schema, abstention, evidence and recommendation gate;
-- five operational result states, all subject to human second review;
-- JSON/Markdown outputs plus an Excel-ready review export;
-- a 60-item synthetic development benchmark and a separate expert-review protocol.
+## For product and applied AI teams
 
-Start with [`phase2_public/README.md`](phase2_public/README.md).
+The product goal is a review aid that makes its evidence and unresolved questions easy to inspect.
 
-The default branch is synchronized to the approved Phase 2 model development
-line on 2026-10-13. It includes the active task-aware gate, the professional
-full-file addendum, conditional MinerU/OCR helpers, reusable operator skill and
-public offline reproduction command. Opt-in candidates remain explicitly
-labelled in their own directories. See
-[`phase2_public/PUBLIC_MODEL_SYNC_20261013.md`](phase2_public/PUBLIC_MODEL_SYNC_20261013.md)
-for the synchronization scope and version record. Expert workbooks and paper
-analysis remain private and are not part of this model synchronization.
+| Workflow need | Implemented response | Explore |
+| --- | --- | --- |
+| Find evidence with the right authority and scope | Four-level cascade retrieval with jurisdiction and project-type checks | [Retriever](phase2_public/src/hierarchy_cascade_retriever.py) |
+| Keep conclusions within the available evidence | Deterministic source, schema, applicability and abstention checks after model reasoning | [Evidence gate](phase2_public/src/llm_abstention_gate.py) |
+| Preserve partial progress when material is missing | Separate observed claims from pending claims | [Task-level checks](phase2_public/src/task_subconclusion_v1.py) |
+| Hand findings to a professional reviewer | Structured results, source locators and an Excel exporter with human decision columns | [Exporter](phase2_public/src/export_review_excel.py) |
 
-Final model-only synchronization was verified on **2026-10-15**. The runtime
-remains unchanged from the approved source commit: 97 core and 28 full-bundle
-offline tests passed, together with five separately executed script-style
-checks. See the [verification record](phase2_public/PUBLIC_MODEL_VERIFICATION_20261015.md)
-and [hashed runtime inventory](phase2_public/public_model_inventory_20261015.json).
-These are functional checks, not new legal-accuracy or expert-validation results.
+```mermaid
+flowchart LR
+    A["Document excerpt"] --> B["Retrieve evidence<br/>Hierarchy and applicability"]
+    B --> C["AI-assisted review<br/>Deterministic evidence checks"]
+    C --> D["Review packet<br/>Finding, source and gaps"]
+    D --> E["Human decision<br/>Confirm, revise or seek evidence"]
+```
 
-### Phase 1 — frozen baseline
+The diagram describes the system workflow. The [public walkthrough](docs/portfolio/WALKTHROUGH.md) runs **sample BM25 retrieval and separate preset-response gate fixtures** offline. It shows inspectable components of this workflow; it does not run the full online LLM pipeline.
 
-The original implementation and research artifacts remain under the
-`phase1_public/` folder:
+### What the public examples show
 
-- ARCHITECTURE.md: system components and control flow.
-- src/: ingestion, retrieval, response parsing, deterministic gate, and
-  MinerU source-locator adapter.
-- prompts/system_prompt_final.md: final v9 output contract and reasoning rules.
-- data/gold/: the 60-row synthetic gold set and annotation contracts.
-- data/law/: legal-source hierarchy and external-fallback manifest.
-- benchmarks/: retrieval metrics and model-behaviour summaries.
-- experiments/design_revision_boq_fpa/: a deterministic 24-case pilot of
-  forced-provenance attribution for design-revision-to-BoQ mapping.
-- docs/PROJECT_REPORT_PUBLIC.md: public project report.
+- **Traceable retrieval:** an existing synthetic query retrieves ranked passages with chunk IDs and article locators from the 20-chunk public sample.
+- **A qualified conclusion:** a preset confirmation claim is reduced to `requires_human_legal_review` when independent confirmation is absent.
+- **Missing evidence stays visible:** an unregistered citation produces `insufficient_information_needs_human_confirm`.
+- **Partial review stays partial:** a readable narrative and an unread chart remain separate, with the chart awaiting verification.
 
-The repository intentionally excludes real project documents, full external
-review payloads, private paths, API keys, `.env` files, local model weights and
-generated runtime outputs. The historical archive directory from the previous
-backup is retained separately and is not a supported runnable entry point.
+The [inputs, generated JSON and execution manifest](docs/portfolio/sample-results/) let readers check each example directly. No human decision has been supplied in these demonstrations.
 
-## Quick start
+## For researchers and prospective supervisors
 
-For the current version, create a local environment and install
-`phase2_public/requirements.txt`. Copy `.env.example` to `.env` and fill
-credentials locally; never commit it. Supply law text that you are permitted to
-use and build a local corpus. The included corpus sample and synthetic gold set
-are for smoke testing and schema inspection.
+The research examines how evidence-grounded AI and human expertise can support industry decision processes. The current application focuses on construction procurement, with three connected questions:
 
-## Frozen retrieval benchmarks
+1. How should source authority, applicability and provenance constrain AI-assisted document review?
+2. How can a system distinguish supported findings, unresolved evidence gaps and processing failures?
+3. How can expert feedback inform evaluation design and subsequent system refinement?
 
-On 52 scorable issues from the 60-row synthetic gold set:
+**Research status: Manuscript submitted.** This repository presents the public implementation and research overview. The manuscript and private study materials are not included.
+
+### Evaluation evidence
+
+| Evidence | Result | What it measures |
+| --- | --- | --- |
+| Public functional regression, rerun 26 November 2026 | **97 core + 28 bundle tests passed**; five additional script suites passed | Software behavior on public fixtures; [current verification record](docs/portfolio/VERIFICATION.md) |
+| Historical strict-hierarchy retrieval | **98.08% hierarchical Evidence Hit@5**, MRR **0.9135**, on **52 supported synthetic issues** | Evidence ranking within the expected level/phase; [metric definitions](phase2_public/evaluation/retrieval/metrics.md) |
+| Historical reasoning replay | **49/60 (81.67%)** three-class agreement; **59** deliverable results and **1** safely blocked result | Gated saved responses against frozen synthetic labels; [replay record](phase2_public/evaluation/reasoning/metrics.md) |
+
+The retrieval and replay figures are historical repository records, not new measurements from this portfolio update. Synthetic benchmarks and functional tests do not establish real-project accuracy or productivity gains. Expert appraisal has its own [protocol and rating schema](phase2_public/evaluation/expert_review/README.md).
+
+<details>
+<summary>Earlier baselines and the design-revision-to-BoQ pilot</summary>
+
+The historical flat-corpus baseline used 52 supported issues:
 
 | Retriever | Recall@5 | MRR |
-|---|---:|---:|
+| --- | ---: | ---: |
 | BM25 | 86.5385% | 0.743590 |
 | Dense embedding | 71.1538% | 0.555067 |
 | BM25 + dense hybrid | 90.3846% | 0.804029 |
 
-The Phase 2 strict-cascade benchmark reported 98.08% hierarchical Evidence
-Hit@5 and 0.9135 MRR within the expected level/phase on 52 supported synthetic
-issues. This metric is not directly interchangeable with the flat-corpus table
-above. MinerU and OCR remain conditional document-ingestion enhancements; no
-end-to-end OCR recall improvement is claimed without physical-locator admission.
+These flat-corpus metrics are not directly interchangeable with the strict-hierarchy metric above. MinerU/OCR are conditional ingestion enhancements; no end-to-end retrieval improvement is attributed to them here.
 
-## Design-revision-to-BoQ experiment
+A separate [24-case synthetic BoQ pilot](phase1_public/experiments/design_revision_boq_fpa/README.md) compares lexical mapping with the same mapper plus a provenance gate. The gate accepts six supported mappings and abstains on 18 others, reducing coverage from 1.00 to 0.25. Unsupported attribution changes from 18/24 accepted baseline outputs to 0/6 accepted gated outputs. This is a deterministic mechanism study with no LLM call, not a real-project effectiveness estimate.
 
-The public experiment compares an unconstrained lexical mapper (M1) with the
-same mapper plus a forced-provenance attribution gate (M2) on 24 deliberately
-constructed synthetic cases. M2 accepted six explicitly supported mappings and
-abstained on 18 ambiguous, conflicting or insufficient-evidence cases. In this
-fixed mechanism pilot, unsupported attribution fell from 18/24 accepted M1
-outputs to 0/6 accepted M2 outputs, while overall coverage fell from 1.00 to
-0.25. These results demonstrate gate behaviour, not real-project performance or
-generalisation.
+</details>
 
-See `phase1_public/experiments/design_revision_boq_fpa/README.md` for the exact
-reproduction commands, metrics and limitations.
+## My contribution and collaboration
 
-## Safety and scope
+I am **Junming Zhang**. I assist with program architecture design, review and accept outputs, refine and optimize the program, and develop evaluation plans.
 
-Use only de-identified or synthetic inputs. External retrieval results require
-manual confirmation and provenance recording. Keep the overall state as
-`requires_human_second_review`. This project is decision support, not legal
-advice and not an automatic award, rejection or disqualification system.
+AI tools assist code implementation and experimental table preparation. Expert participants support effectiveness checks and inform evaluation design through interviews. Their role is distinct from the automated regression tests and synthetic examples published here.
+
+## Run it locally
+
+Use **Python 3.10 or newer**. From the repository root:
+
+```bash
+python3 phase2_public/reproduce_offline.py
+```
+
+The first run prepares a local environment and installs dependencies. It then runs the 97 core and 28 bundle fixture tests. With that environment ready, generate the showcase examples:
+
+```bash
+# macOS / Linux
+phase2_public/.venv/bin/python docs/portfolio/run_demo.py
+
+# Windows PowerShell
+phase2_public\.venv\Scripts\python.exe docs/portfolio/run_demo.py
+```
+
+Open [`docs/portfolio/sample-results/RESULTS.md`](docs/portfolio/sample-results/RESULTS.md) and the JSON files beside it. The demo uses existing public data and fixture factories, makes no LLM or external-law API call, and downloads no model weights.
+
+For a prepared Python environment, dependency versions, the five additional script suites, and optional online operation, see the [verification record](docs/portfolio/VERIFICATION.md) and [Phase 2 setup guide](phase2_public/README.md#local-setup).
+
+## Repository guide
+
+| Path | Purpose |
+| --- | --- |
+| [`docs/portfolio/`](docs/portfolio/) | Walkthrough, generated examples and the current verification record |
+| [`phase2_public/`](phase2_public/README.md) | Current runtime, prompts, tests, evaluation records and operator instructions |
+| [`phase1_public/`](phase1_public/README.md) | Frozen baseline and the separate BoQ pilot |
+| [`phase2_public/candidates/`](phase2_public/candidates/) | Explicitly opt-in experiments; each retains its own status and limits |
+
+The active runtime remains the code verified in the [15 October 2026 release record](phase2_public/PUBLIC_MODEL_VERIFICATION_20261015.md). This portfolio update adds documentation and a wrapper around existing public examples; it changes no model, prompt or decision algorithm. The public corpus is a schema/sample release, not the full legal corpus required to rerun the historical retrieval benchmark.
+
+All delivered findings require human second review. This is a research decision-support prototype, not an automatic award, rejection or disqualification system. Use source texts appropriate to the project and have qualified reviewers determine their current applicability.

@@ -1,0 +1,40 @@
+{
+  "example_kind": "public_sample_bm25_retrieval",
+  "issue_id": "SYN-P1-001-I01",
+  "synthetic_input": "招标文件发售期为3个自然日，自2026年9月1日至2026年9月3日止。",
+  "corpus_chunk_count": 20,
+  "query_policy": "document_excerpt only; gold evidence IDs are not used in retrieval",
+  "candidates": [
+    {
+      "rank": 1,
+      "bm25_score": 17.543998,
+      "chunk_id": "d1a045e563eba90b8893",
+      "title": "中华人民共和国招标投标法实施条例 20190302",
+      "article": "第十六条",
+      "source_locator": "第十六条",
+      "normative_level": "Level 2",
+      "text": "[paragraph 39] 第十六条 招标人应当按照资格预审公告、招标公告或者投标邀请书规定的时间、地点发售资格预审文件或者招标文件。资格预审文件或者招标文件的发售期不得少于5日。\n[paragraph 40] 招标人发售资格预审文件、招标文件收取的费用应当限于补偿印刷、邮寄的成本支出，不得以营利为目的。"
+    },
+    {
+      "rank": 2,
+      "bm25_score": 7.615772,
+      "chunk_id": "5ed0dae1bc7567930a8c",
+      "title": "中华人民共和国招标投标法实施条例 20190302",
+      "article": "第二十一条",
+      "source_locator": "第二十一条",
+      "normative_level": "Level 2",
+      "text": "[paragraph 47] 第二十一条 招标人可以对已发出的资格预审文件或者招标文件进行必要的澄清或者修改。澄清或者修改的内容可能影响资格预审申请文件或者投标文件编制的，招标人应当在提交资格预审申请文件截止时间至少3日前，或者投标截止时间至少15日前，以书面形式通知所有获取资格预审文件或者招标文件的潜在投标人；不足3日或者15日的，招标人应当顺延提交资格预审申请文件或者投标文件的截止时间。"
+    },
+    {
+      "rank": 3,
+      "bm25_score": 7.375278,
+      "chunk_id": "e9b4ff79392d115d9a46",
+      "title": "中华人民共和国招标投标法实施条例 20190302",
+      "article": "第二十三条",
+      "source_locator": "第二十三条",
+      "normative_level": "Level 2",
+      "text": "[paragraph 49] 第二十三条 招标人编制的资格预审文件、招标文件的内容违反法律、行政法规的强制性规定，违反公开、公平、公正和诚实信用原则，影响资格预审结果或者潜在投标人投标的，依法必须进行招标的项目的招标人应当在修改资格预审文件或者招标文件后重新招标。"
+    }
+  ],
+  "scope": "BM25 on 20 public sample chunks; not the full strict-hierarchy hybrid retriever or a benchmark rerun."
+}

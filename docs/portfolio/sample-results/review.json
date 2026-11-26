@@ -1,0 +1,674 @@
+[
+  {
+    "issue_id": "DEMO-REVIEW",
+    "stage3_gate_result": {
+      "status": "corrected",
+      "blocked": false,
+      "actions": [
+        "corrected root.run_id",
+        "corrected root.project_id",
+        "corrected root.conclusion_contract_version",
+        "corrected root.recommendation_comparison_contract_version",
+        "corrected root.output_format",
+        "corrected root.overall_review_status",
+        "corrected root.review_scope",
+        "corrected findings[0].document_id",
+        "corrected findings[0].document_location",
+        "corrected findings[0].document_excerpt",
+        "corrected findings[0].contract_evidence[0].document_id",
+        "corrected findings[0].contract_evidence[0].document_location",
+        "corrected findings[0].contract_evidence[0].document_excerpt",
+        "corrected findings[0].contract_evidence[0].location",
+        "corrected findings[0].contract_evidence[0].excerpt",
+        "corrected findings[0].contract_evidence[0].document_locator",
+        "discarded model-supplied legal_evidence[0].official_source_url absent or null in runtime metadata",
+        "corrected legal_evidence[0].law",
+        "corrected legal_evidence[0].article",
+        "corrected legal_evidence[0].source_locator",
+        "corrected legal_evidence[0].normative_level",
+        "corrected legal_evidence[0].normative_type",
+        "corrected legal_evidence[0].source_role",
+        "corrected legal_evidence[0].independent_legal_evidence",
+        "corrected legal_evidence[0].legal_evidence_eligibility",
+        "corrected legal_evidence[0].citation_mode",
+        "corrected legal_evidence[0].applicability_status",
+        "corrected legal_evidence[0].retrieval_admission",
+        "corrected legal_evidence[0].source_version",
+        "corrected legal_evidence[0].legal_quote",
+        "corrected legal_evidence[0].independent_evidence",
+        "corrected findings[0].runtime_bounded_review",
+        "corrected findings[0].runtime_fact_law_relation_validation",
+        "corrected findings[0].conclusion_type",
+        "corrected findings[0].confidence_assessment",
+        "corrected findings[0].evidence_support_confidence",
+        "corrected findings[0].applicability_confidence",
+        "corrected findings[0].confirmation_validation_available",
+        "corrected findings[0].confirmation_candidate",
+        "corrected findings[0].confirmation_validation",
+        "corrected findings[0].confirmation_not_upgraded_reason",
+        "corrected findings[0].assistant_recommendation",
+        "corrected findings[0].review_processing_label",
+        "rebuilt root.project_summary from canonical findings",
+        "created root.retrieval_audit",
+        "corrected retrieval_audit.external_retrieval_audit",
+        "corrected retrieval_audit.external_sources_used",
+        "corrected retrieval_audit.external_retrieval_called",
+        "corrected root.stage3_decision_audit",
+        "corrected root.review_table",
+        "corrected root.table_markdown"
+      ],
+      "raw_response": {
+        "findings": [
+          {
+            "finding_id": "F001",
+            "issue_id": "DEMO-REVIEW",
+            "risk_category": "potential_non_compliance",
+            "risk_severity": "high",
+            "legal_element_coverage": {
+              "subject": "supported",
+              "conduct_or_condition": "supported",
+              "jurisdiction_and_scope": "supported",
+              "legal_consequence": "supported"
+            },
+            "compliance_relation": "potential_non_compliance",
+            "obligation_phase": "bid_submission",
+            "requirement_lifecycle": "ongoing",
+            "severity_basis": "direct_mandatory_conflict",
+            "scope_assessment": "within_review_scope",
+            "legal_evidence": [
+              {
+                "chunk_id": "law-1",
+                "source_locator": "MODEL-SUPPLIED-LOCATOR",
+                "official_source_url": "https://model.invalid/not-runtime",
+                "independent_legal_evidence": false
+              }
+            ],
+            "contract_evidence": [
+              {
+                "document_id": "MODEL-DOCUMENT",
+                "document_location": "MODEL-LOCATION",
+                "document_excerpt": "MODEL-EXCERPT",
+                "nested": {
+                  "document_excerpt": "MODEL-NESTED-EXCERPT"
+                }
+              }
+            ],
+            "document_id": "MODEL-DOCUMENT",
+            "document_location": "MODEL-LOCATION",
+            "document_excerpt": "MODEL-EXCERPT",
+            "reasoning_conclusion": "合同事实与法规要求可能存在不一致，需人工复核。",
+            "conclusion_type": "requires_human_legal_confirm",
+            "evidence_boundary": "supported_by_primary_local_source",
+            "confidence_assessment": "high",
+            "recommended_human_action": "请人工核对事实和法规适用条件。",
+            "human_review_status": "review_required"
+          }
+        ]
+      },
+      "response": {
+        "findings": [
+          {
+            "finding_id": "F001",
+            "issue_id": "DEMO-REVIEW",
+            "risk_category": "potential_non_compliance",
+            "risk_severity": "high",
+            "legal_element_coverage": {
+              "subject": "supported",
+              "conduct_or_condition": "supported",
+              "jurisdiction_and_scope": "supported",
+              "legal_consequence": "supported"
+            },
+            "compliance_relation": "potential_non_compliance",
+            "obligation_phase": "bid_submission",
+            "requirement_lifecycle": "ongoing",
+            "severity_basis": "direct_mandatory_conflict",
+            "scope_assessment": "within_review_scope",
+            "legal_evidence": [
+              {
+                "chunk_id": "law-1",
+                "source_locator": "第十二条",
+                "independent_legal_evidence": true,
+                "law": "示例全国性法律",
+                "article": "第十二条",
+                "normative_level": "Level 1",
+                "normative_type": "law",
+                "source_role": "primary_source",
+                "legal_evidence_eligibility": "independent_candidate",
+                "citation_mode": "verbatim_source_citation",
+                "applicability_status": "matched",
+                "retrieval_admission": "high_trust",
+                "source_version": "2024-01-01",
+                "legal_quote": "应当提交真实、有效的证明文件。",
+                "independent_evidence": true
+              }
+            ],
+            "contract_evidence": [
+              {
+                "document_id": "DOC-001",
+                "document_location": "第3.2条",
+                "document_excerpt": "合同原文：未提交规定的证明文件。",
+                "nested": {
+                  "document_excerpt": "MODEL-NESTED-EXCERPT"
+                },
+                "location": "第3.2条",
+                "excerpt": "合同原文：未提交规定的证明文件。",
+                "document_locator": "第3.2条"
+              }
+            ],
+            "document_id": "DOC-001",
+            "document_location": "第3.2条",
+            "document_excerpt": "合同原文：未提交规定的证明文件。",
+            "reasoning_conclusion": "合同事实与法规要求可能存在不一致，需人工复核。",
+            "conclusion_type": "requires_human_legal_review",
+            "evidence_boundary": "supported_by_primary_local_source",
+            "confidence_assessment": "medium",
+            "recommended_human_action": "请人工核对事实和法规适用条件。",
+            "human_review_status": "review_required",
+            "runtime_bounded_review": {
+              "eligible": false,
+              "claim": "",
+              "missing_decisive_facts": [],
+              "document_excerpt": "合同原文：未提交规定的证明文件。",
+              "document_location": "第3.2条",
+              "supporting_chunk_ids": [],
+              "requirement_quote": "",
+              "requirement_locator": "",
+              "limitation": "",
+              "human_action": ""
+            },
+            "runtime_fact_law_relation_validation": {
+              "available": false,
+              "eligible": false,
+              "matched_record_count": 0,
+              "matched_evidence_chunk_ids": [],
+              "required_at_stage": "",
+              "not_eligible_reason": "no runtime fact-law relation record provided"
+            },
+            "evidence_support_confidence": "medium",
+            "applicability_confidence": "medium",
+            "confirmation_validation_available": false,
+            "confirmation_candidate": true,
+            "confirmation_validation": {
+              "available": false,
+              "trusted": false,
+              "validated_evidence_chunk_ids": [],
+              "predicates": {},
+              "validation_source": "",
+              "validation_basis": ""
+            },
+            "confirmation_not_upgraded_reason": "没有运行时提供且与 finding 绑定的 claim_confirmation_validation；模型 severity/confidence 不能单独升级为明确违规确认。",
+            "assistant_recommendation": {
+              "recommendation_contract_version": "v3",
+              "fact_law_comparison": {
+                "contract_content": {
+                  "location": "第3.2条",
+                  "verbatim_excerpt": "合同原文：未提交规定的证明文件。"
+                },
+                "legal_requirements": [
+                  {
+                    "chunk_id": "law-1",
+                    "citation": "《示例全国性法律》 第十二条",
+                    "legal_requirement": "应当提交真实、有效的证明文件。"
+                  }
+                ],
+                "identified_difference": "合同事实与法规要求可能存在不一致，需人工复核",
+                "comparison_status": "pending_human_legal_review",
+                "comparison_source": "legacy_reasoning_pending_human_review"
+              },
+              "substantive_conclusion": "合同内容（第3.2条）“合同原文：未提交规定的证明文件。”可能不符合以下法规要求：《示例全国性法律》 第十二条关于“应当提交真实、有效的证明文件。”。LLM 识别、尚待人工复核的具体差异为：合同事实与法规要求可能存在不一致，需人工复核。",
+              "recommended_handling": "请人工核对事实和法规适用条件。",
+              "supporting_legal_evidence": [
+                {
+                  "chunk_id": "law-1",
+                  "law": "示例全国性法律",
+                  "article": "第十二条",
+                  "normative_level": "Level 1",
+                  "source_locator": "第十二条",
+                  "legal_quote": "应当提交真实、有效的证明文件。",
+                  "legal_evidence_eligibility": "independent_candidate",
+                  "reference_purpose": ""
+                }
+              ]
+            },
+            "review_processing_label": "revised"
+          }
+        ],
+        "run_id": "stage3-test-DEMO-REVIEW",
+        "project_id": "PROJECT-001",
+        "conclusion_contract_version": "v2",
+        "recommendation_comparison_contract_version": "v3",
+        "output_format": "review_table",
+        "overall_review_status": "requires_human_second_review",
+        "review_scope": {
+          "jurisdiction_status": "uncertain",
+          "retrieval_mode": "strict_level_cascade_hybrid_bm25_dense"
+        },
+        "project_summary": {
+          "findings_count": 1,
+          "high_priority_review_items": [
+            "F001"
+          ],
+          "evidence_gaps": [
+            "F001: 没有运行时提供且与 finding 绑定的 claim_confirmation_validation；模型 severity/confidence 不能单独升级为明确违规确认。"
+          ],
+          "not_assessed": [],
+          "supplement_candidate_pool_dependencies": [],
+          "statement_boundary": "本结果仅辅助人工审查，不是最终法律结论"
+        },
+        "retrieval_audit": {
+          "external_retrieval_audit": {
+            "audit_source": "runtime_only",
+            "discovery": {
+              "requested": false,
+              "executed": false,
+              "status": "not_called",
+              "scope_completion_basis": "none",
+              "human_attested": false,
+              "candidate_count": 0,
+              "failure_reason": "runtime external_retrieval_audit was not provided"
+            },
+            "verification": {
+              "requested": false,
+              "executed": false,
+              "status": "not_called",
+              "candidate_count": 0,
+              "failure_reason": "runtime external_retrieval_audit was not provided"
+            },
+            "local_search_completion": {}
+          },
+          "external_sources_used": [],
+          "external_retrieval_called": false
+        },
+        "stage3_decision_audit": {
+          "conclusion_contract_version": "v2",
+          "recommendation_comparison_contract_version": "v3",
+          "canonical_conclusion_states": [
+            "requires_human_legal_confirm",
+            "requires_human_legal_review",
+            "insufficient_information_needs_human_confirm",
+            "no_applicable_legal_basis_found_needs_human_confirm",
+            "no_supported_issue_found_within_review_scope"
+          ],
+          "confirmation_validation_available": false,
+          "confirmation_validation_available_count": 0,
+          "confirmation_candidate_count": 1,
+          "confirmed_count": 0,
+          "no_applicable_legal_basis_eligible": false,
+          "no_applicable_legal_basis_reason": "缺少独立的 external_retrieval_audit，不能把有限 manifest 当作完成搜索。",
+          "legacy_three_class_table_mapping": {
+            "requires_human_legal_confirm": "risk_supported",
+            "requires_human_legal_review": "risk_supported",
+            "insufficient_information_needs_human_confirm": "insufficient_information",
+            "no_applicable_legal_basis_found_needs_human_confirm": "insufficient_information",
+            "no_supported_issue_found_within_review_scope": "no_supported_issue_found"
+          },
+          "legacy_three_class_conclusion_mapping": {
+            "requires_human_legal_confirm": "requires_human_legal_review",
+            "requires_human_legal_review": "requires_human_legal_review",
+            "insufficient_information_needs_human_confirm": "insufficient_information",
+            "no_applicable_legal_basis_found_needs_human_confirm": "insufficient_information",
+            "no_supported_issue_found_within_review_scope": "no_supported_issue_found_within_review_scope"
+          }
+        },
+        "review_table": [
+          {
+            "test_result": "risk_supported",
+            "contract_original_text": "合同原文：未提交规定的证明文件。",
+            "conclusion": {
+              "conclusion_type": "requires_human_legal_review",
+              "text": "合同事实与法规要求可能存在不一致，需人工复核。"
+            },
+            "risk_category": "potential_non_compliance",
+            "legal_basis": [
+              {
+                "law": "示例全国性法律",
+                "article": "第十二条",
+                "normative_level": "Level 1",
+                "source_locator": "第十二条",
+                "legal_evidence_eligibility": "independent_candidate",
+                "reference_purpose": ""
+              }
+            ],
+            "evidence_boundary": "supported_by_primary_local_source",
+            "assistant_recommendation": {
+              "recommendation_contract_version": "v3",
+              "fact_law_comparison": {
+                "contract_content": {
+                  "location": "第3.2条",
+                  "verbatim_excerpt": "合同原文：未提交规定的证明文件。"
+                },
+                "legal_requirements": [
+                  {
+                    "chunk_id": "law-1",
+                    "citation": "《示例全国性法律》 第十二条",
+                    "legal_requirement": "应当提交真实、有效的证明文件。"
+                  }
+                ],
+                "identified_difference": "合同事实与法规要求可能存在不一致，需人工复核",
+                "comparison_status": "pending_human_legal_review",
+                "comparison_source": "legacy_reasoning_pending_human_review"
+              },
+              "substantive_conclusion": "合同内容（第3.2条）“合同原文：未提交规定的证明文件。”可能不符合以下法规要求：《示例全国性法律》 第十二条关于“应当提交真实、有效的证明文件。”。LLM 识别、尚待人工复核的具体差异为：合同事实与法规要求可能存在不一致，需人工复核。",
+              "recommended_handling": "请人工核对事实和法规适用条件。",
+              "supporting_legal_evidence": [
+                {
+                  "chunk_id": "law-1",
+                  "law": "示例全国性法律",
+                  "article": "第十二条",
+                  "normative_level": "Level 1",
+                  "source_locator": "第十二条",
+                  "legal_quote": "应当提交真实、有效的证明文件。",
+                  "legal_evidence_eligibility": "independent_candidate",
+                  "reference_purpose": ""
+                }
+              ]
+            },
+            "review_processing_label": "revised"
+          }
+        ],
+        "table_markdown": "整体状态：`requires_human_second_review`\n\n| 测试结果 | 合同原文 | 结论 | 风险类别 | 法规依据 | 证据边界 | Assistant recommendation |\n|---|---|---|---|---|---|---|\n| risk_supported | 合同原文：未提交规定的证明文件。 | requires_human_legal_review：合同事实与法规要求可能存在不一致，需人工复核。 | potential_non_compliance | 示例全国性法律 第十二条 [Level 1] 第十二条 (independent_candidate) | supported_by_primary_local_source | 建议结论：合同内容（第3.2条）“合同原文：未提交规定的证明文件。”可能不符合以下法规要求：《示例全国性法律》 第十二条关于“应当提交真实、有效的证明文件。”。LLM 识别、尚待人工复核的具体差异为：合同事实与法规要求可能存在不一致，需人工复核。<br>建议处理：请人工核对事实和法规适用条件。 |"
+      }
+    }
+  },
+  {
+    "issue_id": "DEMO-UNKNOWN-SOURCE",
+    "stage3_gate_result": {
+      "status": "corrected",
+      "blocked": false,
+      "actions": [
+        "corrected root.run_id",
+        "corrected root.project_id",
+        "corrected root.conclusion_contract_version",
+        "corrected root.recommendation_comparison_contract_version",
+        "corrected root.output_format",
+        "corrected root.overall_review_status",
+        "corrected root.review_scope",
+        "corrected findings[0].document_id",
+        "corrected findings[0].document_location",
+        "corrected findings[0].document_excerpt",
+        "corrected findings[0].contract_evidence[0].document_id",
+        "corrected findings[0].contract_evidence[0].document_location",
+        "corrected findings[0].contract_evidence[0].document_excerpt",
+        "corrected findings[0].contract_evidence[0].location",
+        "corrected findings[0].contract_evidence[0].excerpt",
+        "corrected findings[0].contract_evidence[0].document_locator",
+        "rejected legal_evidence[0] because chunk_id was not in runtime retrieval",
+        "corrected findings[0].runtime_bounded_review",
+        "corrected findings[0].runtime_fact_law_relation_validation",
+        "corrected findings[0].conclusion_type",
+        "corrected findings[0].confidence_assessment",
+        "corrected findings[0].evidence_support_confidence",
+        "corrected findings[0].applicability_confidence",
+        "corrected findings[0].evidence_boundary",
+        "corrected findings[0].reasoning_conclusion",
+        "corrected findings[0].compliance_relation",
+        "corrected findings[0].risk_category",
+        "corrected findings[0].recommended_human_action",
+        "corrected findings[0].confirmation_validation_available",
+        "corrected findings[0].confirmation_candidate",
+        "corrected findings[0].confirmation_validation",
+        "corrected findings[0].confirmation_not_upgraded_reason",
+        "corrected findings[0].risk_severity",
+        "corrected findings[0].assistant_recommendation",
+        "corrected findings[0].review_processing_label",
+        "rebuilt root.project_summary from canonical findings",
+        "created root.retrieval_audit",
+        "corrected retrieval_audit.external_retrieval_audit",
+        "corrected retrieval_audit.external_sources_used",
+        "corrected retrieval_audit.external_retrieval_called",
+        "corrected root.stage3_decision_audit",
+        "corrected root.review_table",
+        "corrected root.table_markdown"
+      ],
+      "raw_response": {
+        "findings": [
+          {
+            "finding_id": "F001",
+            "issue_id": "DEMO-UNKNOWN-SOURCE",
+            "risk_category": "potential_non_compliance",
+            "risk_severity": "high",
+            "legal_element_coverage": {
+              "subject": "supported",
+              "conduct_or_condition": "supported",
+              "jurisdiction_and_scope": "supported",
+              "legal_consequence": "supported"
+            },
+            "compliance_relation": "potential_non_compliance",
+            "obligation_phase": "bid_submission",
+            "requirement_lifecycle": "ongoing",
+            "severity_basis": "direct_mandatory_conflict",
+            "scope_assessment": "within_review_scope",
+            "legal_evidence": [
+              {
+                "chunk_id": "unregistered-source",
+                "source_locator": "MODEL-SUPPLIED-LOCATOR",
+                "official_source_url": "https://model.invalid/not-runtime",
+                "independent_legal_evidence": false
+              }
+            ],
+            "contract_evidence": [
+              {
+                "document_id": "MODEL-DOCUMENT",
+                "document_location": "MODEL-LOCATION",
+                "document_excerpt": "MODEL-EXCERPT",
+                "nested": {
+                  "document_excerpt": "MODEL-NESTED-EXCERPT"
+                }
+              }
+            ],
+            "document_id": "MODEL-DOCUMENT",
+            "document_location": "MODEL-LOCATION",
+            "document_excerpt": "MODEL-EXCERPT",
+            "reasoning_conclusion": "合同事实与法规要求可能存在不一致，需人工复核。",
+            "conclusion_type": "requires_human_legal_confirm",
+            "evidence_boundary": "supported_by_primary_local_source",
+            "confidence_assessment": "high",
+            "recommended_human_action": "请人工核对事实和法规适用条件。",
+            "human_review_status": "review_required"
+          }
+        ]
+      },
+      "response": {
+        "findings": [
+          {
+            "finding_id": "F001",
+            "issue_id": "DEMO-UNKNOWN-SOURCE",
+            "risk_category": "missing_or_insufficient_evidence",
+            "risk_severity": "medium",
+            "legal_element_coverage": {
+              "subject": "supported",
+              "conduct_or_condition": "supported",
+              "jurisdiction_and_scope": "supported",
+              "legal_consequence": "supported"
+            },
+            "compliance_relation": "unresolved",
+            "obligation_phase": "bid_submission",
+            "requirement_lifecycle": "ongoing",
+            "severity_basis": "direct_mandatory_conflict",
+            "scope_assessment": "within_review_scope",
+            "legal_evidence": [],
+            "contract_evidence": [
+              {
+                "document_id": "DOC-001",
+                "document_location": "第3.2条",
+                "document_excerpt": "合同原文：未提交规定的证明文件。",
+                "nested": {
+                  "document_excerpt": "MODEL-NESTED-EXCERPT"
+                },
+                "location": "第3.2条",
+                "excerpt": "合同原文：未提交规定的证明文件。",
+                "document_locator": "第3.2条"
+              }
+            ],
+            "document_id": "DOC-001",
+            "document_location": "第3.2条",
+            "document_excerpt": "合同原文：未提交规定的证明文件。",
+            "reasoning_conclusion": "依据当前材料无法建立所主张的具体差异或判断是否违反要求。没有可用且可定位的运行时法规证据；部分法规引用未通过运行时证据回配。不形成违规指控。",
+            "conclusion_type": "insufficient_information_needs_human_confirm",
+            "evidence_boundary": "not_supported_by_current_corpus",
+            "confidence_assessment": "insufficient_information",
+            "recommended_human_action": "请补充并核验上述缺口：没有可用且可定位的运行时法规证据；部分法规引用未通过运行时证据回配；取得完整原文及定位后进行人工二次审核。",
+            "human_review_status": "review_required",
+            "runtime_bounded_review": {
+              "eligible": false,
+              "claim": "",
+              "missing_decisive_facts": [],
+              "document_excerpt": "合同原文：未提交规定的证明文件。",
+              "document_location": "第3.2条",
+              "supporting_chunk_ids": [],
+              "requirement_quote": "",
+              "requirement_locator": "",
+              "limitation": "",
+              "human_action": ""
+            },
+            "runtime_fact_law_relation_validation": {
+              "available": false,
+              "eligible": false,
+              "matched_record_count": 0,
+              "matched_evidence_chunk_ids": [],
+              "required_at_stage": "",
+              "not_eligible_reason": "no runtime fact-law relation record provided"
+            },
+            "gate_original_conclusion": "合同事实与法规要求可能存在不一致，需人工复核。",
+            "evidence_support_confidence": "insufficient_information",
+            "applicability_confidence": "low",
+            "confirmation_validation_available": false,
+            "confirmation_candidate": true,
+            "confirmation_validation": {
+              "available": false,
+              "trusted": false,
+              "validated_evidence_chunk_ids": [],
+              "predicates": {},
+              "validation_source": "",
+              "validation_basis": ""
+            },
+            "confirmation_not_upgraded_reason": "没有运行时提供且与 finding 绑定的 claim_confirmation_validation；模型 severity/confidence 不能单独升级为明确违规确认。",
+            "assistant_recommendation": {
+              "recommendation_contract_version": "v3",
+              "fact_law_comparison": {
+                "contract_content": {
+                  "location": "第3.2条",
+                  "verbatim_excerpt": "合同原文：未提交规定的证明文件。"
+                },
+                "legal_requirements": [],
+                "identified_difference": "依据当前材料无法建立所主张的具体差异或判断是否违反要求。没有可用且可定位的运行时法规证据；部分法规引用未通过运行时证据回配。不形成违规指控",
+                "comparison_status": "incomplete_or_not_applicable",
+                "comparison_source": "legacy_reasoning_pending_human_review"
+              },
+              "substantive_conclusion": "依据当前材料无法建立所主张的具体差异或判断是否违反要求。没有可用且可定位的运行时法规证据；部分法规引用未通过运行时证据回配。不形成违规指控。",
+              "recommended_handling": "请补充并核验上述缺口：没有可用且可定位的运行时法规证据；部分法规引用未通过运行时证据回配；取得完整原文及定位后进行人工二次审核。",
+              "supporting_legal_evidence": []
+            },
+            "review_processing_label": "revised"
+          }
+        ],
+        "run_id": "stage3-test-DEMO-UNKNOWN-SOURCE",
+        "project_id": "PROJECT-001",
+        "conclusion_contract_version": "v2",
+        "recommendation_comparison_contract_version": "v3",
+        "output_format": "review_table",
+        "overall_review_status": "requires_human_second_review",
+        "review_scope": {
+          "jurisdiction_status": "uncertain",
+          "retrieval_mode": "strict_level_cascade_hybrid_bm25_dense"
+        },
+        "project_summary": {
+          "findings_count": 1,
+          "high_priority_review_items": [],
+          "evidence_gaps": [
+            "F001: 没有运行时提供且与 finding 绑定的 claim_confirmation_validation；模型 severity/confidence 不能单独升级为明确违规确认。"
+          ],
+          "not_assessed": [],
+          "supplement_candidate_pool_dependencies": [],
+          "statement_boundary": "本结果仅辅助人工审查，不是最终法律结论"
+        },
+        "retrieval_audit": {
+          "external_retrieval_audit": {
+            "audit_source": "runtime_only",
+            "discovery": {
+              "requested": false,
+              "executed": false,
+              "status": "not_called",
+              "scope_completion_basis": "none",
+              "human_attested": false,
+              "candidate_count": 0,
+              "failure_reason": "runtime external_retrieval_audit was not provided"
+            },
+            "verification": {
+              "requested": false,
+              "executed": false,
+              "status": "not_called",
+              "candidate_count": 0,
+              "failure_reason": "runtime external_retrieval_audit was not provided"
+            },
+            "local_search_completion": {}
+          },
+          "external_sources_used": [],
+          "external_retrieval_called": false
+        },
+        "stage3_decision_audit": {
+          "conclusion_contract_version": "v2",
+          "recommendation_comparison_contract_version": "v3",
+          "canonical_conclusion_states": [
+            "requires_human_legal_confirm",
+            "requires_human_legal_review",
+            "insufficient_information_needs_human_confirm",
+            "no_applicable_legal_basis_found_needs_human_confirm",
+            "no_supported_issue_found_within_review_scope"
+          ],
+          "confirmation_validation_available": false,
+          "confirmation_validation_available_count": 0,
+          "confirmation_candidate_count": 1,
+          "confirmed_count": 0,
+          "no_applicable_legal_basis_eligible": false,
+          "no_applicable_legal_basis_reason": "缺少独立的 external_retrieval_audit，不能把有限 manifest 当作完成搜索。",
+          "legacy_three_class_table_mapping": {
+            "requires_human_legal_confirm": "risk_supported",
+            "requires_human_legal_review": "risk_supported",
+            "insufficient_information_needs_human_confirm": "insufficient_information",
+            "no_applicable_legal_basis_found_needs_human_confirm": "insufficient_information",
+            "no_supported_issue_found_within_review_scope": "no_supported_issue_found"
+          },
+          "legacy_three_class_conclusion_mapping": {
+            "requires_human_legal_confirm": "requires_human_legal_review",
+            "requires_human_legal_review": "requires_human_legal_review",
+            "insufficient_information_needs_human_confirm": "insufficient_information",
+            "no_applicable_legal_basis_found_needs_human_confirm": "insufficient_information",
+            "no_supported_issue_found_within_review_scope": "no_supported_issue_found_within_review_scope"
+          }
+        },
+        "review_table": [
+          {
+            "test_result": "insufficient_information",
+            "contract_original_text": "合同原文：未提交规定的证明文件。",
+            "conclusion": {
+              "conclusion_type": "insufficient_information_needs_human_confirm",
+              "text": "依据当前材料无法建立所主张的具体差异或判断是否违反要求。没有可用且可定位的运行时法规证据；部分法规引用未通过运行时证据回配。不形成违规指控。"
+            },
+            "risk_category": "missing_or_insufficient_evidence",
+            "legal_basis": [],
+            "evidence_boundary": "not_supported_by_current_corpus",
+            "assistant_recommendation": {
+              "recommendation_contract_version": "v3",
+              "fact_law_comparison": {
+                "contract_content": {
+                  "location": "第3.2条",
+                  "verbatim_excerpt": "合同原文：未提交规定的证明文件。"
+                },
+                "legal_requirements": [],
+                "identified_difference": "依据当前材料无法建立所主张的具体差异或判断是否违反要求。没有可用且可定位的运行时法规证据；部分法规引用未通过运行时证据回配。不形成违规指控",
+                "comparison_status": "incomplete_or_not_applicable",
+                "comparison_source": "legacy_reasoning_pending_human_review"
+              },
+              "substantive_conclusion": "依据当前材料无法建立所主张的具体差异或判断是否违反要求。没有可用且可定位的运行时法规证据；部分法规引用未通过运行时证据回配。不形成违规指控。",
+              "recommended_handling": "请补充并核验上述缺口：没有可用且可定位的运行时法规证据；部分法规引用未通过运行时证据回配；取得完整原文及定位后进行人工二次审核。",
+              "supporting_legal_evidence": []
+            },
+            "review_processing_label": "revised"
+          }
+        ],
+        "table_markdown": "整体状态：`requires_human_second_review`\n\n| 测试结果 | 合同原文 | 结论 | 风险类别 | 法规依据 | 证据边界 | Assistant recommendation |\n|---|---|---|---|---|---|---|\n| insufficient_information | 合同原文：未提交规定的证明文件。 | insufficient_information_needs_human_confirm：依据当前材料无法建立所主张的具体差异或判断是否违反要求。没有可用且可定位的运行时法规证据；部分法规引用未通过运行时证据回配。不形成违规指控。 | missing_or_insufficient_evidence |  | not_supported_by_current_corpus | 建议结论：依据当前材料无法建立所主张的具体差异或判断是否违反要求。没有可用且可定位的运行时法规证据；部分法规引用未通过运行时证据回配。不形成违规指控。<br>建议处理：请补充并核验上述缺口：没有可用且可定位的运行时法规证据；部分法规引用未通过运行时证据回配；取得完整原文及定位后进行人工二次审核。 |"
+      }
+    }
+  }
+]
